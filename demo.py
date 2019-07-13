@@ -1,10 +1,10 @@
-'''Example usage of CryptAnalyst with ElasticSearch.
+'''Example usage of CryptoGraph with ElasticSearch.
 
 Note: ElasticSearch must be running on your computer.
 You will find log data in logs/archive/log-[date]. The logger can be used
-from any module within CryptAnalyst simply by:
+from any module within the CryptoGraph root, simply by:
     `from api.logs.setuplogger import logger`
-    `my_log = logging.getLogger('root.[your.name.here]')`
+    `my_log = logging.getLogger('root.[your.moule.here]')`
 '''
 import datetime
 import logging
