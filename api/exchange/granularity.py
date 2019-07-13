@@ -1,6 +1,21 @@
 class Granularity:
-    def __init__(self, *args):
-        self.values = list(*args)
+    """A class for storing valid time intervals within an Exchange
+
+    Supports:
+    len(my_granularity),
+    if my_granularity in x:
+    iter(my_granularity)
+    next(my_granularity)
+    str(my_granularity)
+    """
+
+    def __init__(self, *granularities):
+        """A class for storing valid time intervals within an Exchange
+
+        Keyword arguments:
+        granularities -- a Tuple with all of the valid granularities
+        """
+        self.values = list(*granularities)
         self.__index = 0
 
     def min(self):
