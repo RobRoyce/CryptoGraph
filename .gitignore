@@ -105,3 +105,6 @@ venv.bak/
 
 # CryptoGraph
 log-*
+
+# MacOS
+.DS_Store
