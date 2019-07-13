@@ -38,8 +38,8 @@ class Coinbase(Exchange):
         else:
             self.api_url = CBConst.Live.rest_url
 
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        self.__auth = auth
+        self.__auth_map = {'auth': self.__auth}
 
         if not auth:
             self._account_active = False
@@ -82,7 +82,7 @@ class Coinbase(Exchange):
             url += '/{}'.format(account_id)
 
         try:
-            accounts = requests.get(url, auth=self.auth)
+            accounts = requests.get(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -123,7 +123,7 @@ class Coinbase(Exchange):
             )
 
             try:
-                history = requests.get(url, auth=self.auth)
+                history = requests.get(url, auth=self.__auth)
             except HTTPError as e:
                 self._event_log.exception(e)
                 raise
@@ -149,7 +149,7 @@ class Coinbase(Exchange):
             )
 
             try:
-                history = requests.get(url, auth=self.auth)
+                history = requests.get(url, auth=self.__auth)
             except HTTPError as e:
                 self._event_log.exception(e)
                 raise
@@ -165,14 +165,14 @@ class Coinbase(Exchange):
         return self.__test_auth()
 
     def add_auth(self, auth):
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        self.__auth = auth
+        self.__auth_map = {'auth': self.__auth}
 
         if self.__test_auth():
             self._account_active = True
         else:
             self._account_active = False
-            self.auth = None
+            self.__auth = None
             raise AuthenticationError
 
     def balance(self, product_id=None):
@@ -219,10 +219,10 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
-            raise
+            receipt = requests.post(url, json=data, auth=self.__auth)
+        except HTTPError as err:
+            self._event_log.exception(err)
+            raise err
 
         if receipt.status_code == CBConst.Status.success:
             return receipt.json()
@@ -262,7 +262,7 @@ class Coinbase(Exchange):
             raise InvalidSymbol(product_id)
 
         try:
-            receipt = requests.delete(url, auth=self.auth)
+            receipt = requests.delete(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -288,7 +288,7 @@ class Coinbase(Exchange):
         url = self.api_url + '/{}/{}'.format(CBConst.orders, order_id)
 
         try:
-            receipt = requests.delete(url, auth=self.auth)
+            receipt = requests.delete(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -331,7 +331,7 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
+            receipt = requests.post(url, json=data, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -483,7 +483,7 @@ class Coinbase(Exchange):
             )
 
             try:
-                holds = requests.get(url, auth=self.auth)
+                holds = requests.get(url, auth=self.__auth)
             except HTTPError as e:
                 self._event_log.exception(e)
                 raise
@@ -493,7 +493,7 @@ class Coinbase(Exchange):
 
             message = holds.json()['message']
             if CBConst.Errors.cb_access_key_required in message:
-                raise AuthenticationError(self.auth)
+                raise AuthenticationError(self.__auth)
             elif CBConst.Errors.bad_request in message:
                 raise InvalidArgument(account_id)
             elif CBConst.Errors.not_found in message:
@@ -512,7 +512,7 @@ class Coinbase(Exchange):
             )
 
             try:
-                holds = requests.get(url, auth=self.auth)
+                holds = requests.get(url, auth=self.__auth)
             except HTTPError as e:
                 self._event_log.exception(e)
                 raise
@@ -543,7 +543,7 @@ class Coinbase(Exchange):
             url += '?level={}'.format(level)
 
         try:
-            book = requests.get(url, auth=self.auth)
+            book = requests.get(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -589,7 +589,7 @@ class Coinbase(Exchange):
 
         url += query_parameters
         try:
-            orders = requests.get(url, auth=self.auth)
+            orders = requests.get(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -599,7 +599,7 @@ class Coinbase(Exchange):
 
         message = orders.json()['message']
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError(self.auth)
+            raise AuthenticationError(self.__auth)
         if CBConst.Errors.not_a_valid_status in message:
             raise InvalidArgument(status)
         if CBConst.Errors.not_a_valid_product_id in message:
@@ -610,7 +610,7 @@ class Coinbase(Exchange):
         url = self.api_url + '/{}'.format(CBConst.payment_methods)
 
         try:
-            methods = requests.get(url, auth=self.auth)
+            methods = requests.get(url, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
@@ -620,7 +620,7 @@ class Coinbase(Exchange):
 
         message = methods.json()['message']
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError(self.auth)
+            raise AuthenticationError(self.__auth)
         raise ExchangeError(message)
 
     def products(self):
@@ -638,8 +638,8 @@ class Coinbase(Exchange):
         raise ExchangeError(products.json()['message'])
 
     def remove_auth(self):
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        self.__auth = auth
+        self.__auth_map = {'auth': self.__auth}
         self._account_active = False
 
     @staticmethod
@@ -676,7 +676,7 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
+            receipt = requests.post(url, json=data, auth=self.__auth)
         except HTTPError as err:
             self._event_log.exception(err)
             raise
@@ -714,7 +714,7 @@ class Coinbase(Exchange):
         url = self.api_url + '/{}'.format(CBConst.coinbase_accounts)
 
         try:
-            receipt = requests.get(url, **self.auth_map).json()
+            receipt = requests.get(url, **self.__auth_map).json()
         except HTTPError as e:
             self._account_active = False
             self._event_log.exception(e)
@@ -785,7 +785,7 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
+            receipt = requests.post(url, json=data, auth=self.__auth)
         except HTTPError as e:
             self._event_log.exception(e)
             raise
