@@ -6,26 +6,29 @@ import requests
 import time
 
 from datetime import datetime
-from pprint import pprint
 from requests.exceptions import *
 
-from coinbase.auth import CoinbaseAuth
-from coinbase.constants import CBConst
-from coinbase.exceptions import *
-from coinbase.keys import Keys
-from exchange.base import Exchange
-from exchange.granularity import Granularity
-from logs.setuplogger import logger
-
+from .coinbase.auth import CoinbaseAuth
+from .coinbase.constants import CBConst
+from .coinbase.exceptions import *
+from .coinbase.keys import Keys
+from .exchange.base import Exchange
+from .exchange.granularity import Granularity
+from .logs.setuplogger import logger
 
 event_log = logging.getLogger('root.{}'.format(__name__))
 
+
 class Coinbase(Exchange):
+    """An `Exchange` subclass used for IO ops with Coinbase"""
 
-    def __init__(self, auth: CoinbaseAuth=None, sandbox: bool=False) -> None:
-        """
+    def __init__(self, auth: CoinbaseAuth = None, sandbox: bool = False):
+        super().__init__()
+        """An `Exchange` subclass used for IO ops with Coinbase
 
-        :rtype: None
+        Keyword arguments:
+        auth -- required for account operations like buying or selling
+        sandbox -- sends all api requests to Coinbase's sandbox if True
         """
         self._event_log = event_log
         self._event_log.info('initializing...')
@@ -44,8 +47,12 @@ class Coinbase(Exchange):
             self._account_active = self.__test_auth()
 
         self.__valid_product_ids = self.__find_valid_product_ids()
-        self.__valid_granularity = Granularity((60, 300, 900, 3600, 21600, 86400))
-        self.__rate_limits = {'public':3, 'public_burst':6, 'private':5, 'private_burst':10}
+        self.__valid_granularity = Granularity(
+            (60, 300, 900, 3600, 21600, 86400)
+        )
+        self.__rate_limits = {
+            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10
+        }
         self.__last_call = time.time()
         self.__call_count = 0
         self.__timeout = 0.5
