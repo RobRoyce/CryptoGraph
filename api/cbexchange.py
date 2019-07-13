@@ -101,15 +101,17 @@ class Coinbase(Exchange):
         Account activity either increases or decreases your account balance.
         Items are paginated and sorted latest first.
 
-        Optional account_id may be used to retrieve
-        information for a single account.
+        Keyword arguments:
+        account_id -- used to get history for a specific account
 
-        ENTRY TYPES
-        Entry type indicates the reason for the account change.
-        transfer - Funds moved to/from Coinbase to coinbase
-        match - Funds moved as a result of a trade
-        fee - Fee as a result of a trade
-        rebate - Fee rebate as per our fee schedule
+        Returns:
+        json style dict
+
+        Return fields:
+        transfer -- Funds moved to/from Coinbase to coinbase
+        match -- Funds moved as a result of a trade
+        fee -- Fee as a result of a trade
+        rebate -- Fee rebate as per our fee schedule
 
         If an entry is the result of a trade (match, fee), the details
         field will contain additional information about the trade.
