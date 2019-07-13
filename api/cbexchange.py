@@ -175,15 +175,13 @@ class Coinbase(Exchange):
             self.__auth = None
             raise AuthenticationError
 
+
     def balance(self, product_id=None):
-        """Returns account balance for all accounts associated with current coinbase auth.
+        """Returns account balance for all accounts associated with current
+        coinbase auth.
 
-        PARAMETERS:
-        product_id [Optional]- string, list, or tuple.
-
-        VALID PRODUCT ID'S:
-        USD, BTC, ETH, LTC, BCH, EUR, GBP
-
+        Keyword arguments:
+        product_id -- optional string, list, or tuple.
         """
         accounts = self.accounts()
         balances = {}
@@ -199,6 +197,11 @@ class Coinbase(Exchange):
     def buy(self, size, product_id, price):
         """Places an order on the 'buy' side.
 
+        Keyword arguments:
+            size -- the volume of the buy order
+            product_id -- a valid trade pair
+            price -- the price of the buy order
+
         Preconditions:
             Coinbase account is enabled and authenticated
             Product_id is a valid currency pair symbol
@@ -209,6 +212,12 @@ class Coinbase(Exchange):
         Postconditions:
             Buy order is placed succesfully
             Receipt is returned as a json dict
+
+        Throws:
+            ExchangeError or a subclass of ExchangeError
+
+        Returns:
+            A json style dict with receipt details
         """
         url = self.api_url + '/{}'.format(CBConst.orders)
         data = {
