@@ -7,14 +7,14 @@ import abc
 
 
 class Exchange(abc.ABC):
+    @abc.abstractmethod
     def __init__(self, auth=None):
-        """Returns new Exchange object."""
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def candles(self, product_id, start, end, granularity):
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def ticker(self):
-        raise NotImplementedError
+        pass
