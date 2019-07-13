@@ -47,7 +47,7 @@ class Coinbase(Exchange):
             self._account_active = self.__test_auth()
 
         self.__valid_product_ids = self.__find_valid_product_ids()
-        self.__valid_granularity = Granularity(
+        self.__available_granularity = Granularity(
             (60, 300, 900, 3600, 21600, 86400)
         )
         self.__rate_limits = {
@@ -175,6 +175,8 @@ class Coinbase(Exchange):
             self.__auth = None
             raise AuthenticationError
 
+    def available_granularity(self):
+        return self.__available_granularity
 
     def balance(self, product_id=None):
         """Returns account balance for all accounts associated with current
@@ -420,7 +422,7 @@ class Coinbase(Exchange):
             (start and not end),
             (end and not start),
             (product_id not in self.__valid_product_ids),
-            (granularity not in self.__valid_granularity)
+            (granularity not in self.__available_granularity)
             ]
         if any(errors):
             msg = '{}'.format((product_id, start, end, granularity))
@@ -821,9 +823,6 @@ class Coinbase(Exchange):
 
     def valid_product_ids(self):
         return self.__valid_product_ids
-
-    def valid_granularity(self):
-        return self.__valid_granularity
 
     def __enter__(self):
         return self
