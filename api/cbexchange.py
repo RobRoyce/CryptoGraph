@@ -60,22 +60,21 @@ class Coinbase(Exchange):
     def accounts(self, account_id=None):
         """Get a list of trading accounts.
 
-        Optional account_id may be used to retrieve
-        information for a single account.
+        Keyword arguments:
+        account_id -- optional to get information for a specific account
 
-        ACCOUNT FIELDS
-        id - Account ID
-        currency - the currency of the account
-        balance - total funds in the account
-        holds - funds on hold (not available for use)
-        available - funds available to withdraw* or trade
-        margin_enabled - [margin] true if the account belongs to margin profile
-        funded_amount - [margin] amount of funding coinbase is currently providing
-        this account
-        default_amount - [margin] amount defaulted on due to not being able
-        to pay back funding
-        * Only applicable to non margin accounts.
-        Withdraws on margin accounts are subject to other restrictions.
+        Returns:
+        json style dict
+
+        Return fields:
+        id -- Coinbase account ID
+        currency -- the primary currency of the account
+        balance -- total funds in the account
+        holds -- funds on hold (not available for use)
+        available -- funds available to withdraw or trade
+        margin_enabled -- true if the account belongs to a margin profile
+        funded_amount -- amount of margin funding coinbase is providing
+        default_amount -- amount of margin in default
         """
         url = self.api_url + '/{}'.format(CBConst.accounts)
         if account_id:
