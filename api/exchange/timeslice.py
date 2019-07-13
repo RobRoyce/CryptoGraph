@@ -6,23 +6,30 @@ from math import ceil
 from dateutil import parser
 
 
-class TimeSlice():
+class TimeSlice:
     """TimeSlice is a utility for standardizing timestamps accross the codebase.
 
     The end goal is to work exclusively with datetime objects, but to be
     able to convert back and forth with ISO 8601 and seconds seamlessly.
     """
+
     def __init__(self):
         pass
 
     @staticmethod
-    def convert_datetime(start: datetime, end: datetime=False, iso8601: bool=False) -> tuple:
-        """ Returns a tuple with the parameters converted to seconds.
+    def convert_datetime(start: datetime, end: datetime = False,
+                         iso8601: bool = False):
+        """Converts a datetime object into its epoch time (in seconds) or
+        an iso8601 string
 
         Keyword arguments:
         start -- a datetime.datetime object
-        end -- an optional datetime.datetime object
-        iso8601 -- set to True if you want the times returned in ISO format
+        end -- optional datetime.datetime object
+        iso8601 -- set to True for iso8601 formated string instead of seconds
+
+        Returns:
+        <float> or <float>, <float>    or...
+        <str> or <str>, <str>
         """
         if end:
             if iso8601:
@@ -40,60 +47,87 @@ class TimeSlice():
             return _start
 
     @staticmethod
-    def convert_iso_str(iso_str, seconds=False):
+    def convert_iso_str(start: str, end: str = False, seconds: bool = False):
+        """Converts an iso8601 string into a datetime object or a float as
+        seconds since epoch.
+
+        Keyword arguments:
+        start -- an iso8601 string
+        end -- optional iso8601 string
+        seconds -- set to True for seconds since epoch instead of datetime
+
+        Returns:
+        <datetime> or <datetime>, <datetime>    or...
+        <float> or <float>, <float>
+        """
+        if end:
+            try:
+                _start = parser.parse(start)
+                _end = parser.parse(end)
+            except Exception as err:
+                msg = 'attempting to parse {} and {}\n{}'.format(
+                    _start, _end, err)
+                raise Exception(msg)
+
+            if seconds:
+                return mktime(_start.timetuple()), mktime(_end.timetuple())
+            return _start, _end
+
         if seconds:
-            return mktime(parser.parse(iso_str).timetuple())
-        return parser.parse(iso_str)
+            return mktime(parser.parse(start).timetuple())
+        return parser.parse(start)
 
     @staticmethod
-    def convert_seconds(start: float, end: float=False, iso8601: bool=False):
+    def convert_seconds(start: float, end: float = False,
+                        iso8601: bool = False):
+        """Converts seconds since epoch into utc datetime or utc iso8601 string
+
+        Keyword arguments:
+        start -- a float as seconds since epoch
+        end -- optional float as seconds since epoch
+        iso8601 -- set to True for iso8601 formated string instead of datetime
+
+        Returns:
+        <datetime> or <datetime>, <datetime>    or...
+        <str> or <str>, <str>
+        """
         if end:
             _start = datetime.utcfromtimestamp(start)
             _end = datetime.utcfromtimestamp(end)
 
             if iso8601:
                 return _start.isoformat(), _end.isoformat()
-            else:
-                return _start, _end
-        else:
-            _start = datetime.utcfromtimestamp(start)
-            if iso8601:
-                return _start.isoformat()
-            else:
-                return _start
+            return _start, _end
+
+        _start = datetime.utcfromtimestamp(start)
+        if iso8601:
+            return _start.isoformat()
+        return _start
 
     @staticmethod
-    def get_range_from_delta(start, delta, iso8601=False):
-        """Takes a datetime and a timedelta and returns two datetime's.
-        """
-        if isinstance(start, datetime):
-            if delta.total_seconds() > 0:
-                return start, start + delta
-            else:
-                return start + delta, start
-        else:
-            raise Exception('start must be datetime')
+    def time_slice(start: datetime, end: datetime,
+                   granularity: int, iso8601: bool = False) -> list:
+        """Returns a list whose elements are pairs (slices) of datetime deltas.
+        Ex: `[[datetime1, datetime2], [datetime3, datetime4], ...]`
 
-    @staticmethod
-    def get_time_range_in_seconds(start, end):
-        """ Returns a tuple with the parameters converted to seconds.
-
-        Keyword argument:
-        start -- a time in _ISO 8601_ for the start of the period
-        end -- a time in __ISO 8601_ for the end of the period
-        """
-        _start = TimeSlice.convert_iso_str(start)
-        _end = TimeSlice.convert_iso_str(end)
-        return (_start, _end)
-
-    @staticmethod
-    def time_slice(start: datetime, end: datetime, granularity: int, iso8601: bool=False) -> list:
-        """Returns a list of start and end times that will achieve the given granularity
+        Note: The slices are returned with the assumption that each
+        call to an Exchange will return a list with no more than exactly
+        300 candles at once. At the moment, this is something that Coinbase
+        has instituted and explicity states in their API documentation. I don't
+        see a way around this, and I might need to rewrite this function
+        for other Exchanges in the future. Be aware that the range of the
+        slices might appear arbitrary. In fact, each range will equal the
+        size of the granularity times 300.
 
         Keyword arguments:
         start -- a datetime.datetime object
         end -- a datetime.datetime object
         granularity -- an integer representing granularity in seconds
+        iso8601 -- True to return iso8601 formated string rather than datetime
+
+        Returns:
+        [[<datetime>,<datetime>], ...]  or...
+        [[<str>,<str>], ...]
         """
         errors = [
             (start > end),
@@ -101,7 +135,8 @@ class TimeSlice():
             (not isinstance(end, datetime))
         ]
         if any(errors):
-            raise Exception('start: {}, end: {}, granularity: {}'.format(start, end, granularity))
+            raise Exception('start: {}, end: {}, granularity: {}'.format(
+                start, end, granularity))
 
         delta = (end - start)
         slice_size = granularity * 300
