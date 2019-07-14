@@ -20,11 +20,11 @@ event_log = logging.getLogger('root.{}'.format(__name__))
 
 
 class Coinbase(Exchange):
-    """An `Exchange` subclass used for IO ops with Coinbase"""
+    """An Exchange subclass used for IO ops with Coinbase"""
 
     def __init__(self, auth: CoinbaseAuth = None, sandbox: bool = False):
         super().__init__()
-        """An `Exchange` subclass used for IO ops with Coinbase
+        """An Exchange subclass used for IO ops with Coinbase
 
         Keyword arguments:
         auth -- required for account operations like buying or selling
@@ -75,6 +75,12 @@ class Coinbase(Exchange):
         margin_enabled -- true if the account belongs to a margin profile
         funded_amount -- amount of margin funding coinbase is providing
         default_amount -- amount of margin in default
+
+        Raises:
+        HTTPError -- if the GET request fails
+        InvalidAccount -- if the account is not found
+        InvalidArgument -- if optional account_id is invalid
+        ExchangeError -- if an unknown error is returned from Coinbase
         """
         url = self.api_url + '/{}'.format(CBConst.accounts)
         if account_id:
@@ -162,8 +168,8 @@ class Coinbase(Exchange):
 
         return account_history
 
-    def active(self):
-        return self.__test_auth()
+    def active(self) -> bool:
+        """Checks if the current CoinbaseAuth is valid and online
 
     def add_auth(self, auth):
         self.__auth = auth
@@ -836,22 +842,12 @@ class Coinbase(Exchange):
 
 
 if __name__ == '__main__':
-    # Setup the logging environment.
-    log_fmt = '%(asctime)s %(levelname)s %(name)s.%(funcName)s() %(message)s'
-    # Have to move this ugly mess in to a wrapper some day.
-    logging.basicConfig(
-        datefmt='%m/%d/%y %H:%M:%S',
-        format=log_fmt,
-        filename='events.log',
-        level=logging.DEBUG
+    KEYS = Keys('COINBASE_SANDBOX')
+    AUTH = CoinbaseAuth(
+        api_key=KEYS.api_key,
+        secret_key=KEYS.secret_key,
+        passphrase=KEYS.passphrase
     )
 
-    keys = Keys('COINBASE_SANDBOX')
-    auth = CoinbaseAuth(
-        api_key=keys.api_key,
-        secret_key=keys.secret_key,
-        passphrase=keys.passphrase
-    )
-
-    exchange = Coinbase()
-    print(exchange.valid_product_ids())
+    CB = Coinbase()
+    print(CB.valid_product_ids())
