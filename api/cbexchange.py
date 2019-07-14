@@ -38,21 +38,18 @@ class Coinbase(Exchange):
         else:
             self.__api_url = CBConst.Live.rest_url
 
-        self.__auth = auth
-        self.__auth_map = {'auth': self.__auth}
+        self._account_active = False
+        self.__auth = None
+        self.__auth_map = None
 
-        if not auth:
-            self._account_active = False
-        else:
-            self._account_active = self.__test_auth()
+        if auth:
+            self.add_auth(auth)
 
         self.__valid_product_ids = self.__find_valid_product_ids()
         self.__available_granularity = Granularity(
-            (60, 300, 900, 3600, 21600, 86400)
-        )
-        self.__rate_limits = {
-            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10
-        }
+            (60, 300, 900, 3600, 21600, 86400))
+        self._rate_limits = {
+            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10}
         self.__last_call = time.time()
         self.__call_count = 0
         self.__timeout = 0.5
@@ -171,16 +168,33 @@ class Coinbase(Exchange):
     def active(self) -> bool:
         """Checks if the current CoinbaseAuth is valid and online
 
-    def add_auth(self, auth):
-        self.__auth = auth
-        self.__auth_map = {'auth': self.__auth}
+        Uses the internal CoinbaseAuth as an argument to the add_auth method.
+        The benefit of this is that if the internal auth is no longer active,
+        it will be removed from the object and potential errors will be avoided
+        """
+        _valid = self.__test_auth(self.__auth)
 
-        if self.__test_auth():
+        if _valid:
+            return True
+        self.__auth = None
+        self.__auth_map = None
+        self._account_active = False
+        return False
+
+    def add_auth(self, auth) -> bool:
+        """Currently, only one CoinbaseAuth is allowed at a time
+
+        Keyword arguments:
+        auth -- a CoinbaseAuth object. replaces the active auth with this one
+        """
+        _valid = self.__test_auth(auth)
+
+        if _valid:
+            self.__auth = auth
+            self.__auth_map = {'auth': self.__auth}
             self._account_active = True
-        else:
-            self._account_active = False
-            self.__auth = None
-            raise cbex.AuthenticationError
+            return True
+        return False
 
     def available_granularity(self):
         return self.__available_granularity
@@ -326,7 +340,7 @@ class Coinbase(Exchange):
         It conforms to the `Exchange.candles` protocol required by the `MarketData` module
         """
         try:
-            if self.__call_count < self.__rate_limits['public']:
+            if self.__call_count < self._rate_limits['public']:
                 self.__call_count = self.__call_count + 1
                 return self.historic_rates(product_id, start, end, granularity)
             else:
@@ -655,8 +669,8 @@ class Coinbase(Exchange):
         raise cbex.ExchangeError(products.json()['message'])
 
     def remove_auth(self):
-        self.__auth = auth
-        self.__auth_map = {'auth': self.__auth}
+        self.__auth = None
+        self.__auth_map = None
         self._account_active = False
 
     @staticmethod
@@ -724,25 +738,30 @@ class Coinbase(Exchange):
             raise cbex.InvalidSize(size)
         raise cbex.ExchangeError(message)
 
-    def __test_auth(self):
-        """Checks coinbase account status using the provided credentials.
-        """
-        self._account_active = False
+    def __test_auth(self, auth) -> bool:
+        """Checks Coinbase account status using the provided credentials."""
+        if not isinstance(auth, CoinbaseAuth):
+            return False
+
         url = self.__api_url + '/{}'.format(CBConst.coinbase_accounts)
+        _auth_map = {'auth': auth}
+        _active = False
 
         try:
-            receipt = requests.get(url, **self.__auth_map).json()
+            _receipt = requests.get(url, **_auth_map).json()
         except rqex.HTTPError as err:
-            self._account_active = False
             self._event_log.exception(err)
             raise err
 
-        for i in range(0, len(receipt)):
+        for alpha in range(0, len(_receipt)):
             try:
-                if receipt[i]['active']:
-                    self._account_active = True
+                if _receipt[alpha]['active']:
+                    _active = True
                     break
             except KeyError:
+                msg = _receipt['message']
+                if CBConst.Errors.invalid_api_key in msg:
+                    raise cbex.AuthenticationError()
                 msg = 'this error will only occur if Coinbase has changed '\
                     'their API and the `active` key is no longer in use. '\
                     'For more details view GET /coinbase-accounts in the '\
@@ -750,7 +769,7 @@ class Coinbase(Exchange):
                 self._event_log.critical(msg)
                 raise cbex.InternalServerErrror(msg)
 
-        return self._account_active
+        return _active
 
     def ticker(self, symbol):
         url = self.__api_url + '/{}/{}/{}'.format(
@@ -770,11 +789,11 @@ class Coinbase(Exchange):
             raise cbex.ExchangeError(ticker.json()['message'])
 
     def trades(self, product_id):
-        url = self.api_url + '/{}/{}/{}'.format(
+        """List the latest trades for a specific product_id."""
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             product_id,
-            CBConst.trades
-        )
+            CBConst.trades)
 
         try:
             trades = requests.get(url)
