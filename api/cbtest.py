@@ -1,3 +1,7 @@
+"""Note that you have to change the relative import method in cbexchange.py
+i.e.        `from .coinbase.auth import CoinbaseAuth`
+should be   `from coinbase.auth import CoinbaseAuth`
+"""
 import logging
 import unittest
 
