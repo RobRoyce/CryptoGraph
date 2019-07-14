@@ -34,9 +34,9 @@ class Coinbase(Exchange):
         self._event_log.info('initializing...')
 
         if sandbox:
-            self.api_url = CBConst.Sandbox.rest_url
+            self.__api_url = CBConst.Sandbox.rest_url
         else:
-            self.api_url = CBConst.Live.rest_url
+            self.__api_url = CBConst.Live.rest_url
 
         self.__auth = auth
         self.__auth_map = {'auth': self.__auth}
@@ -82,7 +82,7 @@ class Coinbase(Exchange):
         InvalidArgument -- if optional account_id is invalid
         ExchangeError -- if an unknown error is returned from Coinbase
         """
-        url = self.api_url + '/{}'.format(CBConst.accounts)
+        url = self.__api_url + '/{}'.format(CBConst.accounts)
         if account_id:
             url += '/{}'.format(account_id)
 
@@ -123,7 +123,7 @@ class Coinbase(Exchange):
         field will contain additional information about the trade.
         """
         if account_id:
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.ledger
@@ -149,7 +149,7 @@ class Coinbase(Exchange):
 
         for account in accounts:
             account_id = account['id']
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.ledger
@@ -228,7 +228,7 @@ class Coinbase(Exchange):
         Returns:
             A json style dict with receipt details
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         data = {
             "price": price,
             "size": size,
@@ -273,7 +273,7 @@ class Coinbase(Exchange):
         """Cancels all active orders with option
         to cancel orders of a specific symbol.
         """
-        url = self.api_url + '/{}/'.format(CBConst.orders)
+        url = self.__api_url + '/{}/'.format(CBConst.orders)
 
         if product_id and product_id in self.__valid_product_ids:
             url += '?product_id={}'.format(product_id)
@@ -304,7 +304,7 @@ class Coinbase(Exchange):
             The order is canceled
             Receipt is returned as a json dict
         """
-        url = self.api_url + '/{}/{}'.format(CBConst.orders, order_id)
+        url = self.__api_url + '/{}/{}'.format(CBConst.orders, order_id)
 
         try:
             receipt = requests.delete(url, auth=self.__auth)
@@ -336,10 +336,8 @@ class Coinbase(Exchange):
         except cbex.ExchangeError as err:
             raise err
 
-
-
     def deposit(self, amount, currency, payment_method_id):
-        url = self.api_url + '/{}/{}'.format(
+        url = self.__api_url + '/{}/{}'.format(
             CBConst.deposits,
             CBConst.payment_method
         )
@@ -445,7 +443,7 @@ class Coinbase(Exchange):
             start = start.isoformat()
             end = end.isoformat()
 
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products, product_id, CBConst.candles)
 
         params = {'granularity': granularity}
@@ -495,7 +493,7 @@ class Coinbase(Exchange):
         Coinbase account.
         """
         if account_id:
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.holds
@@ -524,7 +522,7 @@ class Coinbase(Exchange):
 
         for account in accounts:
             account_id = account['id']
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.holds
@@ -552,7 +550,7 @@ class Coinbase(Exchange):
             2 - Top 50 bids and asks (aggregated)
             3 - Full order book (non aggregated)
         """
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             product_id,
             CBConst.book
@@ -586,7 +584,7 @@ class Coinbase(Exchange):
         Postconditions:
             A list of json dicts is returned with all active orders
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         query_parameters = ''
 
         if status:
@@ -626,7 +624,7 @@ class Coinbase(Exchange):
         raise cbex.ExchangeError(message)
 
     def payment_methods(self):
-        url = self.api_url + '/{}'.format(CBConst.payment_methods)
+        url = self.__api_url + '/{}'.format(CBConst.payment_methods)
 
         try:
             methods = requests.get(url, auth=self.__auth)
@@ -645,7 +643,7 @@ class Coinbase(Exchange):
     def products(self):
         """Get a list of available currency pairs for trading.
         """
-        url = self.api_url + '/{}'.format(CBConst.products)
+        url = self.__api_url + '/{}'.format(CBConst.products)
 
         try:
             products = requests.get(url)
@@ -686,7 +684,7 @@ class Coinbase(Exchange):
             Sell order is placed succesfully
             Receipt is returned as a json dict
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         data = {
             "price": price,
             "size": size,
@@ -730,7 +728,7 @@ class Coinbase(Exchange):
         """Checks coinbase account status using the provided credentials.
         """
         self._account_active = False
-        url = self.api_url + '/{}'.format(CBConst.coinbase_accounts)
+        url = self.__api_url + '/{}'.format(CBConst.coinbase_accounts)
 
         try:
             receipt = requests.get(url, **self.__auth_map).json()
@@ -755,11 +753,10 @@ class Coinbase(Exchange):
         return self._account_active
 
     def ticker(self, symbol):
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             symbol,
-            CBConst.ticker
-        )
+            CBConst.ticker)
 
         try:
             ticker = requests.get(url)
@@ -795,7 +792,7 @@ class Coinbase(Exchange):
     def withdraw(self, amount, currency, payment_method_id):
         """Withdraw funds to a payment method.
         """
-        url = self.api_url + '/{}/{}'.format(
+        url = self.__api_url + '/{}/{}'.format(
             CBConst.withdrawals,
             CBConst.payment_method
         )
