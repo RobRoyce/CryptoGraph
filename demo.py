@@ -15,7 +15,8 @@ from elasticsearch import Elasticsearch
 from api.cbexchange import Coinbase
 from api.coinbase.exceptions import *
 from api.exchange.timeslice import TimeSlice
-from .marketdata import MarketData
+from api.logs.setuplogger import logger
+from marketdata import MarketData
 
 
 
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     start = datetime.datetime(year=2019, month=1, day=1)
     end = datetime.datetime(year=2019, month=6, day=1)
 
-    for granularity in reversed(granularities):
+    for granularity in granularities:
         slices = TimeSlice.time_slice(start, end, granularity)
         for product_id in products:
             for _start, _end in slices:
@@ -61,3 +62,5 @@ if __name__ == '__main__':
                 except InvalidArgument as err:
                     event_log.exception(err)
                     raise err
+                event_log.debug('%s to %s @ %s DONE...',
+                                _start, _end, granularity)
