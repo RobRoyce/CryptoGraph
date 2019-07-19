@@ -6,11 +6,11 @@ import requests
 import time
 
 from datetime import datetime
-from requests.exceptions import *
+from requests import exceptions as rqex
 
 from .coinbase.auth import CoinbaseAuth
 from .coinbase.constants import CBConst
-from .coinbase.exceptions import *
+from .coinbase import exceptions as cbex
 from .coinbase.keys import Keys
 from .exchange.base import Exchange
 from .exchange.granularity import Granularity
@@ -20,11 +20,11 @@ event_log = logging.getLogger('root.{}'.format(__name__))
 
 
 class Coinbase(Exchange):
-    """An `Exchange` subclass used for IO ops with Coinbase"""
+    """An Exchange subclass used for IO ops with Coinbase"""
 
     def __init__(self, auth: CoinbaseAuth = None, sandbox: bool = False):
         super().__init__()
-        """An `Exchange` subclass used for IO ops with Coinbase
+        """An Exchange subclass used for IO ops with Coinbase
 
         Keyword arguments:
         auth -- required for account operations like buying or selling
@@ -34,25 +34,22 @@ class Coinbase(Exchange):
         self._event_log.info('initializing...')
 
         if sandbox:
-            self.api_url = CBConst.Sandbox.rest_url
+            self.__api_url = CBConst.Sandbox.rest_url
         else:
-            self.api_url = CBConst.Live.rest_url
+            self.__api_url = CBConst.Live.rest_url
 
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        self._account_active = False
+        self.__auth = None
+        self.__auth_map = None
 
-        if not auth:
-            self._account_active = False
-        else:
-            self._account_active = self.__test_auth()
+        if auth:
+            self.add_auth(auth)
 
         self.__valid_product_ids = self.__find_valid_product_ids()
-        self.__valid_granularity = Granularity(
-            (60, 300, 900, 3600, 21600, 86400)
-        )
-        self.__rate_limits = {
-            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10
-        }
+        self.__available_granularity = Granularity(
+            (60, 300, 900, 3600, 21600, 86400))
+        self._rate_limits = {
+            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10}
         self.__last_call = time.time()
         self.__call_count = 0
         self.__timeout = 0.5
@@ -60,31 +57,36 @@ class Coinbase(Exchange):
     def accounts(self, account_id=None):
         """Get a list of trading accounts.
 
-        Optional account_id may be used to retrieve
-        information for a single account.
+        Keyword arguments:
+        account_id -- optional to get information for a specific account
 
-        ACCOUNT FIELDS
-        id - Account ID
-        currency - the currency of the account
-        balance - total funds in the account
-        holds - funds on hold (not available for use)
-        available - funds available to withdraw* or trade
-        margin_enabled - [margin] true if the account belongs to margin profile
-        funded_amount - [margin] amount of funding coinbase is currently providing
-        this account
-        default_amount - [margin] amount defaulted on due to not being able
-        to pay back funding
-        * Only applicable to non margin accounts.
-        Withdraws on margin accounts are subject to other restrictions.
+        Returns:
+        json style dict
+
+        Return fields:
+        id -- Coinbase account ID
+        currency -- the primary currency of the account
+        balance -- total funds in the account
+        holds -- funds on hold (not available for use)
+        available -- funds available to withdraw or trade
+        margin_enabled -- true if the account belongs to a margin profile
+        funded_amount -- amount of margin funding coinbase is providing
+        default_amount -- amount of margin in default
+
+        Raises:
+        HTTPError -- if the GET request fails
+        InvalidAccount -- if the account is not found
+        InvalidArgument -- if optional account_id is invalid
+        ExchangeError -- if an unknown error is returned from Coinbase
         """
-        url = self.api_url + '/{}'.format(CBConst.accounts)
+        url = self.__api_url + '/{}'.format(CBConst.accounts)
         if account_id:
             url += '/{}'.format(account_id)
 
         try:
-            accounts = requests.get(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            accounts = requests.get(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if accounts.status_code == CBConst.Status.success:
@@ -92,98 +94,117 @@ class Coinbase(Exchange):
 
         message = accounts.json()['message']
         if CBConst.Errors.not_found in message:
-            raise InvalidAccount(account_id)
+            raise cbex.InvalidAccount(account_id)
         if CBConst.Errors.bad_request in message:
-            raise InvalidArgument(account_id)
-        raise ExchangeError(message)
+            raise cbex.InvalidArgument(account_id)
+        raise cbex.ExchangeError(message)
 
     def account_history(self, account_id=None):
         """List account activity.
         Account activity either increases or decreases your account balance.
         Items are paginated and sorted latest first.
 
-        Optional account_id may be used to retrieve
-        information for a single account.
+        Keyword arguments:
+        account_id -- used to get history for a specific account
 
-        ENTRY TYPES
-        Entry type indicates the reason for the account change.
-        transfer - Funds moved to/from Coinbase to coinbase
-        match - Funds moved as a result of a trade
-        fee - Fee as a result of a trade
-        rebate - Fee rebate as per our fee schedule
+        Returns:
+        json style dict
+
+        Return fields:
+        transfer -- Funds moved to/from Coinbase to coinbase
+        match -- Funds moved as a result of a trade
+        fee -- Fee as a result of a trade
+        rebate -- Fee rebate as per our fee schedule
 
         If an entry is the result of a trade (match, fee), the details
         field will contain additional information about the trade.
         """
         if account_id:
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.ledger
             )
 
             try:
-                history = requests.get(url, auth=self.auth)
-            except HTTPError as e:
-                self._event_log.exception(e)
+                history = requests.get(url, auth=self.__auth)
+            except rqex.HTTPError as err:
+                self._event_log.exception(err)
                 raise
 
             if history.status_code == CBConst.Status.success:
                 return history.json()
             elif CBConst.Errors.bad_request in history.json()['message']:
-                raise InvalidArgument(account_id)
+                raise cbex.InvalidArgument(account_id)
             elif CBConst.Errors.not_found in history.json()['message']:
-                raise InvalidAccount(account_id)
+                raise cbex.InvalidAccount(account_id)
             else:
-                raise ExchangeError(history.json()['message'])
+                raise cbex.ExchangeError(history.json()['message'])
 
         accounts = self.accounts()
         account_history = []
 
         for account in accounts:
             account_id = account['id']
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.ledger
             )
 
             try:
-                history = requests.get(url, auth=self.auth)
-            except HTTPError as e:
-                self._event_log.exception(e)
+                history = requests.get(url, auth=self.__auth)
+            except rqex.HTTPError as err:
+                self._event_log.exception(err)
                 raise
 
             if history.status_code == CBConst.Status.success:
                 account_history.append(history.json())
             else:
-                raise ExchangeError(history.json()['message'])
+                raise cbex.ExchangeError(history.json()['message'])
 
         return account_history
 
-    def active(self):
-        return self.__test_auth()
+    def active(self) -> bool:
+        """Checks if the current CoinbaseAuth is valid and online
 
-    def add_auth(self, auth):
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        Uses the internal CoinbaseAuth as an argument to the add_auth method.
+        The benefit of this is that if the internal auth is no longer active,
+        it will be removed from the object and potential errors will be avoided
+        """
+        _valid = self.__test_auth(self.__auth)
 
-        if self.__test_auth():
+        if _valid:
+            return True
+        self.__auth = None
+        self.__auth_map = None
+        self._account_active = False
+        return False
+
+    def add_auth(self, auth) -> bool:
+        """Currently, only one CoinbaseAuth is allowed at a time
+
+        Keyword arguments:
+        auth -- a CoinbaseAuth object. replaces the active auth with this one
+        """
+        _valid = self.__test_auth(auth)
+
+        if _valid:
+            self.__auth = auth
+            self.__auth_map = {'auth': self.__auth}
             self._account_active = True
-        else:
-            self._account_active = False
-            self.auth = None
-            raise AuthenticationError
+            return True
+        return False
+
+    def available_granularity(self):
+        return self.__available_granularity
 
     def balance(self, product_id=None):
-        """Returns account balance for all accounts associated with current coinbase auth.
+        """Returns account balance for all accounts associated with current
+        coinbase auth.
 
-        PARAMETERS:
-        product_id [Optional]- string, list, or tuple.
-
-        VALID PRODUCT ID'S:
-        USD, BTC, ETH, LTC, BCH, EUR, GBP
-
+        Keyword arguments:
+        product_id -- optional string, list, or tuple.
         """
         accounts = self.accounts()
         balances = {}
@@ -199,6 +220,11 @@ class Coinbase(Exchange):
     def buy(self, size, product_id, price):
         """Places an order on the 'buy' side.
 
+        Keyword arguments:
+            size -- the volume of the buy order
+            product_id -- a valid trade pair
+            price -- the price of the buy order
+
         Preconditions:
             Coinbase account is enabled and authenticated
             Product_id is a valid currency pair symbol
@@ -209,8 +235,14 @@ class Coinbase(Exchange):
         Postconditions:
             Buy order is placed succesfully
             Receipt is returned as a json dict
+
+        Throws:
+            ExchangeError or a subclass of ExchangeError
+
+        Returns:
+            A json style dict with receipt details
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         data = {
             "price": price,
             "size": size,
@@ -219,60 +251,61 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
-            raise
+            receipt = requests.post(url, json=data, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
+            raise err
 
         if receipt.status_code == CBConst.Status.success:
             return receipt.json()
 
         message = receipt.json()['message']
+        price_errors = [
+            (CBConst.Errors.invalid_price in message),
+            (CBConst.Errors.price_required in message),
+            (CBConst.Errors.price_too_large in message)]
+        size_errors = [
+            (CBConst.Errors.size_required in message),
+            (CBConst.Errors.size_too_large in message),
+            (CBConst.Errors.size_too_small in message)]
+
+        if any(price_errors):
+            raise cbex.InvalidPrice(price)
+        if any(size_errors):
+            raise cbex.InvalidSize(size)
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError
+            raise cbex.AuthenticationError(message)
         if CBConst.Errors.insufficient_funds in message:
-            raise InsufficientFunds
+            raise cbex.InsufficientFunds(message)
         if CBConst.Errors.internal_server_error in message:
-            raise InternalServerErrror
-        if CBConst.Errors.invalid_price in message:
-            raise InvalidPrice(price)
-        if CBConst.Errors.price_required in message:
-            raise InvalidPrice(price)
-        if CBConst.Errors.price_too_large in message:
-            raise InvalidPrice(price)
+            raise cbex.InternalServerErrror(message)
         if CBConst.Errors.product_not_found in message:
-            raise InvalidSymbol(product_id)
-        if CBConst.Errors.size_required in message:
-            raise InvalidSize(size)
-        if CBConst.Errors.size_too_large in message:
-            raise InvalidSize(size)
-        if CBConst.Errors.size_too_small in message:
-            raise InvalidSize(size)
-        raise ExchangeError(message)
+            raise cbex.InvalidSymbol(product_id)
+        raise cbex.ExchangeError(message)
 
     def cancel_all_orders(self, product_id=None):
         """Cancels all active orders with option
         to cancel orders of a specific symbol.
         """
-        url = self.api_url + '/{}/'.format(CBConst.orders)
+        url = self.__api_url + '/{}/'.format(CBConst.orders)
 
         if product_id and product_id in self.__valid_product_ids:
             url += '?product_id={}'.format(product_id)
         elif product_id and product_id not in self.__valid_product_ids:
-            raise InvalidSymbol(product_id)
+            raise cbex.InvalidSymbol(product_id)
 
         try:
-            receipt = requests.delete(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            receipt = requests.delete(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if receipt.status_code == CBConst.Status.success:
             if receipt.json() == [] and product_id:
-                raise EmptyResponse
+                raise cbex.EmptyResponse
             return receipt.json()
 
-        raise ExchangeError(receipt.json()['message'])
+        raise cbex.ExchangeError(receipt.json()['message'])
 
     def cancel_order(self, order_id):
         """Cancels the order number specified in order_id.
@@ -285,12 +318,12 @@ class Coinbase(Exchange):
             The order is canceled
             Receipt is returned as a json dict
         """
-        url = self.api_url + '/{}/{}'.format(CBConst.orders, order_id)
+        url = self.__api_url + '/{}/{}'.format(CBConst.orders, order_id)
 
         try:
-            receipt = requests.delete(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            receipt = requests.delete(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if receipt.status_code == CBConst.Status.success:
@@ -298,8 +331,8 @@ class Coinbase(Exchange):
 
         message = receipt.json()['message']
         if CBConst.Errors.invalid_order_id in message:
-            raise InvalidOrder(order_id)
-        raise ExchangeError(message)
+            raise cbex.InvalidOrder(order_id)
+        raise cbex.ExchangeError(message)
 
     def candles(self, product_id, start, end, granularity):
         """Candle data for a product.
@@ -307,20 +340,18 @@ class Coinbase(Exchange):
         It conforms to the `Exchange.candles` protocol required by the `MarketData` module
         """
         try:
-            if self.__call_count < self.__rate_limits['public']:
+            if self.__call_count < self._rate_limits['public']:
                 self.__call_count = self.__call_count + 1
                 return self.historic_rates(product_id, start, end, granularity)
             else:
                 time.sleep(self.__timeout)
                 self.__call_count = 1
                 return self.historic_rates(product_id, start, end, granularity)
-        except ExchangeError as err:
+        except cbex.ExchangeError as err:
             raise err
 
-
-
     def deposit(self, amount, currency, payment_method_id):
-        url = self.api_url + '/{}/{}'.format(
+        url = self.__api_url + '/{}/{}'.format(
             CBConst.deposits,
             CBConst.payment_method
         )
@@ -331,9 +362,9 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            receipt = requests.post(url, json=data, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if receipt.status_code == CBConst.Status.success:
@@ -341,10 +372,10 @@ class Coinbase(Exchange):
 
         message = receipt.json()['message']
         if CBConst.Errors.does_not_match in message:
-            raise InvalidArgument(currency, payment_method_id)
+            raise cbex.InvalidArgument(currency, payment_method_id)
         if CBConst.Errors.cannot_deposit_less_than in message:
-            raise InvalidAmount(message)
-        raise ExchangeError(message)
+            raise cbex.InvalidAmount(message)
+        raise cbex.ExchangeError(message)
 
     def __enforce_rate_limit(self):
         pass
@@ -411,22 +442,22 @@ class Coinbase(Exchange):
             (start and not end),
             (end and not start),
             (product_id not in self.__valid_product_ids),
-            (granularity not in self.__valid_granularity)
+            (granularity not in self.__available_granularity)
             ]
         if any(errors):
             msg = '{}'.format((product_id, start, end, granularity))
             self._event_log.error(msg)
-            raise InvalidArgument(errors)
+            raise cbex.InvalidArgument(errors)
 
         if isinstance(start, datetime):
             if not isinstance(end, datetime):
-                raise InvalidArgument(
+                raise cbex.InvalidArgument(
                     'start: {} and end: {} must be same type'.format(
                         type(start), type(end)))
             start = start.isoformat()
             end = end.isoformat()
 
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products, product_id, CBConst.candles)
 
         params = {'granularity': granularity}
@@ -436,7 +467,7 @@ class Coinbase(Exchange):
 
         try:
             rates = requests.get(url, params=params)
-        except HTTPError as err:
+        except rqex.HTTPError as err:
             self._event_log.exception(err)
             raise
 
@@ -450,9 +481,9 @@ class Coinbase(Exchange):
         ]
 
         if any(errors):
-            raise InvalidArgument(message)
+            raise cbex.InvalidArgument(message)
 
-        raise ExchangeError(message)
+        raise cbex.ExchangeError(message)
 
     def holds(self, account_id=None):
         """Holds are placed on an account for any active orders or
@@ -476,16 +507,16 @@ class Coinbase(Exchange):
         Coinbase account.
         """
         if account_id:
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.holds
             )
 
             try:
-                holds = requests.get(url, auth=self.auth)
-            except HTTPError as e:
-                self._event_log.exception(e)
+                holds = requests.get(url, auth=self.__auth)
+            except rqex.HTTPError as err:
+                self._event_log.exception(err)
                 raise
 
             if holds.status_code == CBConst.Status.success:
@@ -493,34 +524,34 @@ class Coinbase(Exchange):
 
             message = holds.json()['message']
             if CBConst.Errors.cb_access_key_required in message:
-                raise AuthenticationError(self.auth)
+                raise cbex.AuthenticationError(self.__auth)
             elif CBConst.Errors.bad_request in message:
-                raise InvalidArgument(account_id)
+                raise cbex.InvalidArgument(account_id)
             elif CBConst.Errors.not_found in message:
-                raise InvalidAccount(account_id)
-            raise ExchangeError(message)
+                raise cbex.InvalidAccount(account_id)
+            raise cbex.ExchangeError(message)
 
         accounts = self.accounts()
         account_holds = []
 
         for account in accounts:
             account_id = account['id']
-            url = self.api_url + '/{}/{}/{}'.format(
+            url = self.__api_url + '/{}/{}/{}'.format(
                 CBConst.accounts,
                 account_id,
                 CBConst.holds
             )
 
             try:
-                holds = requests.get(url, auth=self.auth)
-            except HTTPError as e:
-                self._event_log.exception(e)
+                holds = requests.get(url, auth=self.__auth)
+            except rqex.HTTPError as err:
+                self._event_log.exception(err)
                 raise
 
             if holds.status_code == CBConst.Status.success:
                 account_holds.append(holds.json())
             else:
-                raise ExchangeError(holds.json()['message'])
+                raise cbex.ExchangeError(holds.json()['message'])
 
         return account_holds
 
@@ -533,7 +564,7 @@ class Coinbase(Exchange):
             2 - Top 50 bids and asks (aggregated)
             3 - Full order book (non aggregated)
         """
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             product_id,
             CBConst.book
@@ -543,9 +574,9 @@ class Coinbase(Exchange):
             url += '?level={}'.format(level)
 
         try:
-            book = requests.get(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            book = requests.get(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if book.status_code == CBConst.Status.success:
@@ -553,10 +584,10 @@ class Coinbase(Exchange):
 
         message = book.json()['message']
         if CBConst.Errors.not_found in message:
-            raise InvalidArgument(product_id)
+            raise cbex.InvalidArgument(product_id)
         if CBConst.Errors.invalid_level in message:
-            raise InvalidArgument(level)
-        raise ExchangeError(message)
+            raise cbex.InvalidArgument(level)
+        raise cbex.ExchangeError(message)
 
     def orders(self, status=None, product_id=None):
         """Returns a list of all active, done, open, or pending orders.
@@ -567,7 +598,7 @@ class Coinbase(Exchange):
         Postconditions:
             A list of json dicts is returned with all active orders
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         query_parameters = ''
 
         if status:
@@ -579,7 +610,7 @@ class Coinbase(Exchange):
             elif isinstance(status, str):
                 query_parameters += '?status={}'.format(status)
             else:
-                raise InvalidArgument(status)
+                raise cbex.InvalidArgument(status)
 
         if product_id:
             if '?' in query_parameters:
@@ -589,9 +620,9 @@ class Coinbase(Exchange):
 
         url += query_parameters
         try:
-            orders = requests.get(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            orders = requests.get(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if orders.status_code == CBConst.Status.success:
@@ -599,20 +630,20 @@ class Coinbase(Exchange):
 
         message = orders.json()['message']
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError(self.auth)
+            raise cbex.AuthenticationError(self.__auth)
         if CBConst.Errors.not_a_valid_status in message:
-            raise InvalidArgument(status)
+            raise cbex.InvalidArgument(status)
         if CBConst.Errors.not_a_valid_product_id in message:
-            raise InvalidArgument(product_id)
-        raise ExchangeError(message)
+            raise cbex.InvalidArgument(product_id)
+        raise cbex.ExchangeError(message)
 
     def payment_methods(self):
-        url = self.api_url + '/{}'.format(CBConst.payment_methods)
+        url = self.__api_url + '/{}'.format(CBConst.payment_methods)
 
         try:
-            methods = requests.get(url, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            methods = requests.get(url, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if methods.status_code == CBConst.Status.success:
@@ -620,26 +651,26 @@ class Coinbase(Exchange):
 
         message = methods.json()['message']
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError(self.auth)
-        raise ExchangeError(message)
+            raise cbex.AuthenticationError(self.__auth)
+        raise cbex.ExchangeError(message)
 
     def products(self):
         """Get a list of available currency pairs for trading.
         """
-        url = self.api_url + '/{}'.format(CBConst.products)
+        url = self.__api_url + '/{}'.format(CBConst.products)
 
         try:
             products = requests.get(url)
-        except HTTPError as e:
-            self._event_log.exception(e)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
 
         if products.status_code == CBConst.Status.success:
             return products.json()
-        raise ExchangeError(products.json()['message'])
+        raise cbex.ExchangeError(products.json()['message'])
 
     def remove_auth(self):
-        self.auth = auth
-        self.auth_map = {'auth': self.auth}
+        self.__auth = None
+        self.__auth_map = None
         self._account_active = False
 
     @staticmethod
@@ -652,7 +683,7 @@ class Coinbase(Exchange):
         if coinbase_time.status_code == CBConst.Status.success:
             return coinbase_time.json()
         else:
-            raise ExchangeError((coinbase_time.json()['message']))
+            raise cbex.ExchangeError((coinbase_time.json()['message']))
 
     def sell(self, size, product_id, price):
         """Places an order on the 'sell' side.
@@ -667,7 +698,7 @@ class Coinbase(Exchange):
             Sell order is placed succesfully
             Receipt is returned as a json dict
         """
-        url = self.api_url + '/{}'.format(CBConst.orders)
+        url = self.__api_url + '/{}'.format(CBConst.orders)
         data = {
             "price": price,
             "size": size,
@@ -676,8 +707,8 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
-        except HTTPError as err:
+            receipt = requests.post(url, json=data, auth=self.__auth)
+        except rqex.HTTPError as err:
             self._event_log.exception(err)
             raise
 
@@ -686,95 +717,101 @@ class Coinbase(Exchange):
 
         message = receipt.json()['message']
         if CBConst.Errors.cb_access_key_required in message:
-            raise AuthenticationError
+            raise cbex.AuthenticationError
         if CBConst.Errors.insufficient_funds in message:
-            raise InsufficientFunds
+            raise cbex.InsufficientFunds
         if CBConst.Errors.internal_server_error in message:
-            raise InternalServerErrror
+            raise cbex.InternalServerErrror(message)
         if CBConst.Errors.invalid_price in message:
-            raise InvalidPrice(price)
+            raise cbex.InvalidPrice(price)
         if CBConst.Errors.price_required in message:
-            raise InvalidPrice(price)
+            raise cbex.InvalidPrice(price)
         if CBConst.Errors.price_too_large in message:
-            raise InvalidPrice(price)
+            raise cbex.InvalidPrice(price)
         if CBConst.Errors.product_not_found in message:
-            raise InvalidSymbol(product_id)
+            raise cbex.InvalidSymbol(product_id)
         if CBConst.Errors.size_required in message:
-            raise InvalidSize(size)
+            raise cbex.InvalidSize(size)
         if CBConst.Errors.size_too_large in message:
-            raise InvalidSize(size)
+            raise cbex.InvalidSize(size)
         if CBConst.Errors.size_too_small in message:
-            raise InvalidSize(size)
-        raise ExchangeError(message)
+            raise cbex.InvalidSize(size)
+        raise cbex.ExchangeError(message)
 
-    def __test_auth(self):
-        """Checks coinbase account status using the provided credentials.
-        """
-        self._account_active = False
-        url = self.api_url + '/{}'.format(CBConst.coinbase_accounts)
+    def __test_auth(self, auth) -> bool:
+        """Checks Coinbase account status using the provided credentials."""
+        if not isinstance(auth, CoinbaseAuth):
+            return False
 
-        try:
-            receipt = requests.get(url, **self.auth_map).json()
-        except HTTPError as e:
-            self._account_active = False
-            self._event_log.exception(e)
-            raise
-        except Exception as e:
-            self._account_active = False
-            self._event_log.exception(e)
-            raise
+        url = self.__api_url + '/{}'.format(CBConst.coinbase_accounts)
+        _auth_map = {'auth': auth}
+        _active = False
 
         try:
-            for i in range(0, len(receipt)):
-                if receipt[i]['active']:
-                    self._account_active = True
-        except KeyError:
-            self._account_active = False
+            _receipt = requests.get(url, **_auth_map).json()
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
+            raise err
 
-        return self._account_active
+        for alpha in range(0, len(_receipt)):
+            try:
+                if _receipt[alpha]['active']:
+                    _active = True
+                    break
+            except KeyError:
+                msg = _receipt['message']
+                if CBConst.Errors.invalid_api_key in msg:
+                    raise cbex.AuthenticationError()
+                msg = 'this error will only occur if Coinbase has changed '\
+                    'their API and the `active` key is no longer in use. '\
+                    'For more details view GET /coinbase-accounts in the '\
+                    'Coinbase API documentation'
+                self._event_log.critical(msg)
+                raise cbex.InternalServerErrror(msg)
+
+        return _active
 
     def ticker(self, symbol):
-        url = self.api_url + '/{}/{}/{}'.format(
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             symbol,
-            CBConst.ticker
-        )
+            CBConst.ticker)
 
         try:
             ticker = requests.get(url)
-        except HTTPError as e:
-            self._event_log.exception(e)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if ticker.status_code == CBConst.Status.success:
             return ticker.json()
         else:
-            raise ExchangeError(ticker.json()['message'])
+            raise cbex.ExchangeError(ticker.json()['message'])
 
     def trades(self, product_id):
-        url = self.api_url + '/{}/{}/{}'.format(
+        """List the latest trades for a specific product_id."""
+        url = self.__api_url + '/{}/{}/{}'.format(
             CBConst.products,
             product_id,
-            CBConst.trades
-        )
+            CBConst.trades)
 
         try:
             trades = requests.get(url)
-        except HTTPError as e:
-            self._event_log.exception(e)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if trades.status_code == CBConst.Status.success:
             return trades.json()
 
-        message = trades.json()['message']
-        raise ExchangeError(message)
+        msg = trades.json()['message']
+        raise cbex.ExchangeError(msg)
 
 
     def withdraw(self, amount, currency, payment_method_id):
         """Withdraw funds to a payment method.
         """
-        url = self.api_url + '/{}/{}'.format(
+        url = self.__api_url + '/{}/{}'.format(
             CBConst.withdrawals,
             CBConst.payment_method
         )
@@ -785,9 +822,9 @@ class Coinbase(Exchange):
         }
 
         try:
-            receipt = requests.post(url, json=data, auth=self.auth)
-        except HTTPError as e:
-            self._event_log.exception(e)
+            receipt = requests.post(url, json=data, auth=self.__auth)
+        except rqex.HTTPError as err:
+            self._event_log.exception(err)
             raise
 
         if receipt.status_code == CBConst.Status.success:
@@ -795,26 +832,23 @@ class Coinbase(Exchange):
 
         message = receipt.json()['message']
         if CBConst.Errors.amount_is_required in message:
-            raise InvalidArgument(message)
+            raise cbex.InvalidArgument(message)
         if CBConst.Errors.amount_must_be_positive in message:
-            raise InvalidArgument(message)
+            raise cbex.InvalidArgument(message)
         if CBConst.Errors.does_not_exist in message:
-            raise InvalidArgument(message)
+            raise cbex.InvalidArgument(message)
         if CBConst.Errors.does_not_match in message:
-            raise InvalidArgument(message)
+            raise cbex.InvalidArgument(message)
         if CBConst.Errors.invalid_api_key in message:
-            raise InvalidAccount(message)
+            raise cbex.InvalidAccount(message)
         if CBConst.Errors.insufficient_funds in message:
-            raise InsufficientFunds(message)
+            raise cbex.InsufficientFunds(message)
         if CBConst.Errors.unsupported_currency in message:
-            raise InvalidArgument(message)
-        raise ExchangeError(message)
+            raise cbex.InvalidArgument(message)
+        raise cbex.ExchangeError(message)
 
     def valid_product_ids(self):
         return self.__valid_product_ids
-
-    def valid_granularity(self):
-        return self.__valid_granularity
 
     def __enter__(self):
         return self
@@ -824,22 +858,12 @@ class Coinbase(Exchange):
 
 
 if __name__ == '__main__':
-    # Setup the logging environment.
-    log_fmt = '%(asctime)s %(levelname)s %(name)s.%(funcName)s() %(message)s'
-    # Have to move this ugly mess in to a wrapper some day.
-    logging.basicConfig(
-        datefmt='%m/%d/%y %H:%M:%S',
-        format=log_fmt,
-        filename='events.log',
-        level=logging.DEBUG
+    KEYS = Keys('COINBASE_SANDBOX')
+    AUTH = CoinbaseAuth(
+        api_key=KEYS.api_key,
+        secret_key=KEYS.secret_key,
+        passphrase=KEYS.passphrase
     )
 
-    keys = Keys('COINBASE_SANDBOX')
-    auth = CoinbaseAuth(
-        api_key=keys.api_key,
-        secret_key=keys.secret_key,
-        passphrase=keys.passphrase
-    )
-
-    exchange = Coinbase()
-    print(exchange.valid_product_ids())
+    CB = Coinbase()
+    print(CB.valid_product_ids())

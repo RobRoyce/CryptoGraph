@@ -22,7 +22,7 @@ class MarketData():
 
     def available_granularity(self):
         """Determines available and valid granularities in active exchange"""
-        return self._exchange.valid_granularity()
+        return self._exchange.available_granularity()
 
     def available_trade_pairs(self) -> list:
         """Determines which currencies are available in active exchange"""

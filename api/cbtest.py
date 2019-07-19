@@ -1,12 +1,17 @@
+"""Note that you have to change the relative import method in cbexchange.py
+i.e.        `from .coinbase.auth import CoinbaseAuth`
+should be   `from coinbase.auth import CoinbaseAuth`
+"""
 import logging
 import unittest
 
 from coinbase.auth import CoinbaseAuth
-from coinbase.exceptions import *
+from coinbase import exceptions as cbex
 from coinbase.keys import Keys
 from cbexchange import Coinbase
 from logs.setuplogger import logger
 event_log = logging.getLogger('root.{}'.format(__name__))
+
 
 class CoinbaseTestCase(unittest.TestCase):
     def setUp(self):
@@ -24,7 +29,7 @@ class CoinbaseTestCase(unittest.TestCase):
         exchange = Coinbase(auth=self.auth, sandbox=True)
         try:
             success = exchange.active()
-        except ExchangeError as err:
+        except cbex.ExchangeError:
             errors = True
         self.assertTrue(success)
         self.assertFalse(errors)
@@ -32,7 +37,7 @@ class CoinbaseTestCase(unittest.TestCase):
         exchange = Coinbase(auth=None, sandbox=True)
         try:
             success = exchange.active()
-        except ExchangeError:
+        except cbex.ExchangeError:
             errors = True
         self.assertFalse(success)
         self.assertFalse(errors)
@@ -42,7 +47,7 @@ class CoinbaseTestCase(unittest.TestCase):
             success = exchange.add_auth(self.auth)
             # Note that sandbox is set to False but
             # self.auth is a sandbox auth
-        except AuthenticationError:
+        except cbex.AuthenticationError:
             errors = True
         self.assertFalse(success)
         self.assertTrue(errors)
@@ -53,7 +58,7 @@ class CoinbaseTestCase(unittest.TestCase):
         errors = False
         try:
             receipt = exchange.buy(1, 'BTC-USD', 1)
-        except ExchangeError:
+        except cbex.ExchangeError:
             errors = True
         self.assertFalse(errors)
         self.assertTrue(receipt is not None)
@@ -68,7 +73,7 @@ class CoinbaseTestCase(unittest.TestCase):
         exchange = Coinbase(sandbox=True)
         try:
             receipt = exchange.buy(1, 'BTC-USD', 1)
-        except AuthenticationError:
+        except cbex.AuthenticationError:
             errors = True
         self.assertTrue(errors)
         self.assertTrue(receipt is None)
@@ -79,7 +84,7 @@ class CoinbaseTestCase(unittest.TestCase):
         errors = False
         try:
             receipt = exchange.buy(1, 'BTC-USD', 10000000000)
-        except InsufficientFunds:
+        except cbex.InsufficientFunds:
             errors = True
         self.assertTrue(errors)
         self.assertTrue(receipt is None)
@@ -92,7 +97,7 @@ class CoinbaseTestCase(unittest.TestCase):
         price = 0
         try:
             receipt = exchange.buy(1, 'BTC-USD', price)
-        except InvalidPrice:
+        except cbex.InvalidPrice:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -101,7 +106,7 @@ class CoinbaseTestCase(unittest.TestCase):
         price = -1
         try:
             receipt = exchange.buy(1, 'BTC-USD', price)
-        except InvalidPrice:
+        except cbex.InvalidPrice:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -110,7 +115,7 @@ class CoinbaseTestCase(unittest.TestCase):
         price = 1000000000000
         try:
             receipt = exchange.buy(1, 'BTC-USD', price)
-        except InternalServerErrror:
+        except cbex.InternalServerErrror:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -122,7 +127,7 @@ class CoinbaseTestCase(unittest.TestCase):
         size = 0
         try:
             receipt = exchange.buy(size, 'BTC-USD', 1)
-        except InvalidSize:
+        except cbex.InvalidSize:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -131,7 +136,7 @@ class CoinbaseTestCase(unittest.TestCase):
         size = 1000000000
         try:
             receipt = exchange.buy(size, 'BTC-USD', 1)
-        except InvalidSize:
+        except cbex.InvalidSize:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -142,7 +147,7 @@ class CoinbaseTestCase(unittest.TestCase):
         errors = False
         try:
             receipt = exchange.buy(1, 'BTC', 1)
-        except InvalidSymbol:
+        except cbex.InvalidSymbol:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -156,7 +161,7 @@ class CoinbaseTestCase(unittest.TestCase):
         error = False
         try:
             cancel = exchange.cancel_order('invalid')
-        except InvalidOrder:
+        except cbex.InvalidOrder:
             error = True
         self.assertTrue(error)
 
@@ -169,13 +174,13 @@ class CoinbaseTestCase(unittest.TestCase):
 
         try:  # correctly-spelled product
             rates = exchange.historic_rates('ETH-USD')
-        except ExchangeError:
+        except cbex.ExchangeError:
             pass
         self.assertTrue(rates)
 
         try:  # incorrectly-spelled product
             rates = exchange.historic_rates('ETH-UtSD')
-        except InvalidArgument:
+        except cbex.InvalidArgument:
             error = True
         self.assertTrue(error)
         error = False
@@ -183,21 +188,21 @@ class CoinbaseTestCase(unittest.TestCase):
         try:  # granularity too small
             rates = exchange.historic_rates(
                 'ETH-USD', start='2019-01-01', end='2019-06-01')
-        except InvalidArgument:
+        except cbex.InvalidArgument:
             error = True
         self.assertTrue(error)
         error = False
 
         try:  # missing end date
             rates = exchange.historic_rates('ETH-USD', start='2019-01-01')
-        except InvalidArgument:
+        except cbex.InvalidArgument:
             error = True
         self.assertTrue(error)
         error = False
 
         try:  # missing start date
             rates = exchange.historic_rates('ETH-USD', end='2019-01-01')
-        except InvalidArgument:
+        except cbex.InvalidArgument:
             error = True
         self.assertTrue(error)
         error = False
@@ -207,7 +212,7 @@ class CoinbaseTestCase(unittest.TestCase):
         ticker = None
         try:
             ticker = exchange.ticker('BTC-USD')
-        except ExchangeError:
+        except cbex.ExchangeError:
             pass
         self.assertTrue(ticker is not None)
         self.assertTrue('time' in ticker)
@@ -218,7 +223,7 @@ class CoinbaseTestCase(unittest.TestCase):
         errors = False
         try:
             receipt = exchange.sell(1, 'BTC-USD', 1)
-        except ExchangeError:
+        except cbex.ExchangeError:
             errors = True
         self.assertFalse(errors)
         self.assertTrue(receipt is not None)
@@ -233,7 +238,7 @@ class CoinbaseTestCase(unittest.TestCase):
         exchange = Coinbase(sandbox=True)
         try:
             receipt = exchange.sell(1, 'BTC-USD', 1)
-        except AuthenticationError:
+        except cbex.AuthenticationError:
             errors = True
         self.assertTrue(errors)
         self.assertTrue(receipt is None)
@@ -245,7 +250,7 @@ class CoinbaseTestCase(unittest.TestCase):
         price = 0
         try:
             receipt = exchange.sell(1, 'BTC-USD', price)
-        except InvalidPrice:
+        except cbex.InvalidPrice:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -254,7 +259,7 @@ class CoinbaseTestCase(unittest.TestCase):
         price = 10000000000000000000
         try:
             receipt = exchange.sell(1, 'BTC-USD', price)
-        except InternalServerErrror:
+        except cbex.InternalServerErrror:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -266,7 +271,7 @@ class CoinbaseTestCase(unittest.TestCase):
         size = 0
         try:
             receipt = exchange.sell(size, 'BTC-USD', 1)
-        except InvalidSize:
+        except cbex.InvalidSize:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -275,7 +280,7 @@ class CoinbaseTestCase(unittest.TestCase):
         size = 1000000000
         try:
             receipt = exchange.sell(size, 'BTC-USD', 1)
-        except InvalidSize:
+        except cbex.InvalidSize:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)
@@ -286,7 +291,7 @@ class CoinbaseTestCase(unittest.TestCase):
         errors = False
         try:
             receipt = exchange.sell(1, 'BTC', 1)
-        except InvalidSymbol:
+        except cbex.InvalidSymbol:
             errors = True
         self.assertTrue(receipt is None)
         self.assertTrue(errors)

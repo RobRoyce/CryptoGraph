@@ -9,16 +9,16 @@ from .constants import CBConst
 
 
 class CoinbaseAuth(AuthBase):
-    """ Authenticator used for GDAX API calls that require credentials.
+    """ Authenticator used for Coinbase API calls that require credentials.
 
-        Each GDAXExchange object may be initialized with a
+        Each Coinbase object may be initialized with a
         CoinbaseAuth, or one can be added later by calling
-        add_auth() from your GDAXExchange object
+        add_auth() from your Coinbase object
 
         Using the requests module, any POST method should be
         called using the 'auth' parmeter.
         Example:
-            receipt = requests.post(url, json=data, auth=self.auth)
+            receipt = requests.post(url, json=data, auth=self.__auth)
 
         It is also sometimes necessary to call a GET or DELETE
         method and include an auth mapping in **kwargs
@@ -38,29 +38,28 @@ class CoinbaseAuth(AuthBase):
     """
 
     def __init__(self, api_key: str, secret_key: str, passphrase: str):
-        self._event_log = logging.getLogger('root.{}'.format(__name__))
-        self._event_log.debug('encrypting message...')
+        self.__log = logging.getLogger('root.{}'.format(__name__))
+        self.__log.debug('encrypting message...')
 
         errors = [
-            not isinstance(api_key, str),
-            not isinstance(secret_key, str),
-            not isinstance(passphrase, str)
-        ]
+            (not isinstance(api_key, str)),
+            (not isinstance(secret_key, str)),
+            (not isinstance(passphrase, str))]
 
         if any(errors):
             msg = 'arguments must be str type'
-            self._event_log.exception(msg)
+            self.__log.exception(msg)
             raise Exception(msg)
 
-        self.api_key = api_key
-        self.secret_key = secret_key
-        self.passphrase = passphrase
+        self.__api_key = api_key
+        self.__secret_key = secret_key
+        self.__passphrase = passphrase
 
     def __call__(self, request):
         try:
             timestamp = str(self.__server_time())
         except Exception as err:
-            self._event_log('unable to get system time - {}'.format(err))
+            self.__log('unable to get system time - {}'.format(err))
             raise err
 
         method = request.method
@@ -74,15 +73,15 @@ class CoinbaseAuth(AuthBase):
             body
         ).encode()
 
-        hmac_key = base64.b64decode(self.secret_key)
+        hmac_key = base64.b64decode(self.__secret_key)
         signature = hmac.new(hmac_key, message, hashlib.sha256)
         signature_b64 = base64.b64encode(signature.digest())
 
         request.headers.update({
             CBConst.cb_access_sign: signature_b64,
             CBConst.cb_access_timestamp: timestamp,
-            CBConst.cb_access_key: self.api_key,
-            CBConst.cb_access_passphrase: self.passphrase,
+            CBConst.cb_access_key: self.__api_key,
+            CBConst.cb_access_passphrase: self.__passphrase,
             CBConst.content_type: CBConst.application_json
         })
 
@@ -95,7 +94,7 @@ class CoinbaseAuth(AuthBase):
             time = requests.get(url)
         except Exception as err:
             msg = 'unable to get system time - {}'.format(err)
-            self._event_log.exception(msg)
+            self.__log.exception(msg)
             raise err
 
         if time.status_code == 200:

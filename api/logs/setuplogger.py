@@ -41,4 +41,5 @@ class Logger:
     def warn(self, msg):
         self._log.warn(msg)
 
+
 logger = Logger()

@@ -16,5 +16,13 @@ class Exchange(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def ticker(self):
+    def ticker(self, symbol):
+        pass
+
+    @abc.abstractmethod
+    def available_granularity(self):
+        pass
+
+    @abc.abstractmethod
+    def valid_product_ids(self):
         pass
