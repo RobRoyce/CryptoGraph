@@ -31,20 +31,11 @@ class TimeSlice:
         <float> or <float>, <float>    or...
         <str> or <str>, <str>
         """
+        _start = start.isoformat() if iso8601 else time.mktime(start.timetuple())
         if end:
-            if iso8601:
-                _start = start.isoformat()
-                _end = end.isoformat()
-            else:
-                _start = time.mktime(start.timetuple())
-                _end = time.mktime(end.timetuple())
+            _end = end.isoformat() if iso8601 else time.mktime(end.timetuple())
             return _start, _end
-        else:
-            if iso8601:
-                _start = start.isoformat()
-            else:
-                _start = time.mktime(start.timetuple())
-            return _start
+        return _start
 
     @staticmethod
     def convert_iso_str(start: str, end: str = False, seconds: bool = False):
