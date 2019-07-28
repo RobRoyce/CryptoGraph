@@ -17,7 +17,7 @@ class TimeSlice:
         pass
 
     @staticmethod
-    def convert_datetime(start: datetime, end: datetime = False,
+    def convert_datetime(start: datetime, end: datetime = None,
                          iso8601: bool = False):
         """Converts a datetime object into its epoch time (in seconds) or
         an iso8601 string
@@ -28,8 +28,8 @@ class TimeSlice:
         iso8601 -- set to True for iso8601 formated string instead of seconds
 
         Returns:
-        <float> or <float>, <float>    or...
-        <str> or <str>, <str>
+        float or float, float    or...
+        str or str, str
         """
         _start = start.isoformat() if iso8601 else time.mktime(start.timetuple())
         if end:
@@ -38,7 +38,7 @@ class TimeSlice:
         return _start
 
     @staticmethod
-    def convert_iso_str(start: str, end: str = False, seconds: bool = False):
+    def convert_iso_str(start: str, end: str = None, seconds: bool = False):
         """Converts an iso8601 string into a datetime object or a float as
         seconds since epoch.
 
@@ -48,8 +48,8 @@ class TimeSlice:
         seconds -- set to True for seconds since epoch instead of datetime
 
         Returns:
-        <datetime> or <datetime>, <datetime>    or...
-        <float> or <float>, <float>
+        datetime or datetime, datetime    or...
+        float or float, float
         """
         if end:
             try:
@@ -69,9 +69,9 @@ class TimeSlice:
         return parser.parse(start)
 
     @staticmethod
-    def convert_seconds(start: float, end: float = False,
-                        iso8601: bool = False):
-        """Converts seconds since epoch into utc datetime or utc iso8601 string
+    def convert_seconds(start: float, end: float = None,
+                        iso8601: bool = False, utc: bool = False):
+        """Converts seconds since epoch into datetime or iso8601 string
 
         Keyword arguments:
         start -- a float as seconds since epoch
@@ -79,20 +79,19 @@ class TimeSlice:
         iso8601 -- set to True for iso8601 formated string instead of datetime
 
         Returns:
-        <datetime> or <datetime>, <datetime>    or...
-        <str> or <str>, <str>
+        datetime or datetime, datetime    or...
+        str or str, str
         """
+        _start = datetime.utcfromtimestamp(start).isoformat() if (iso8601 and utc) else \
+            datetime.fromtimestamp(start).isoformat() if (iso8601) else \
+            datetime.utcfromtimestamp(start) if utc else \
+            datetime.fromtimestamp(start)
         if end:
-            _start = datetime.utcfromtimestamp(start)
-            _end = datetime.utcfromtimestamp(end)
-
-            if iso8601:
-                return _start.isoformat(), _end.isoformat()
+            _end = datetime.utcfromtimestamp(end).isoformat() if (iso8601 and utc) else \
+                datetime.fromtimestamp(end).isoformat() if iso8601 else \
+                datetime.utcfromtimestamp(end) if utc else \
+                datetime.fromtimestamp(end)
             return _start, _end
-
-        _start = datetime.utcfromtimestamp(start)
-        if iso8601:
-            return _start.isoformat()
         return _start
 
     @staticmethod
@@ -117,8 +116,8 @@ class TimeSlice:
         iso8601 -- True to return iso8601 formated string rather than datetime
 
         Returns:
-        [[<datetime>,<datetime>], ...]  or...
-        [[<str>,<str>], ...]
+        [[datetime,datetime], ...]  or...
+        [[str,str], ...]
         """
         errors = [
             (start > end),
