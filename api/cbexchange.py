@@ -23,7 +23,6 @@ class Coinbase(Exchange):
     """An Exchange subclass used for IO ops with Coinbase"""
 
     def __init__(self, auth: CoinbaseAuth = None, sandbox: bool = False):
-        super().__init__()
         """An Exchange subclass used for IO ops with Coinbase
 
         Keyword arguments:
@@ -682,8 +681,8 @@ class Coinbase(Exchange):
 
         if coinbase_time.status_code == CBConst.Status.success:
             return coinbase_time.json()
-        else:
-            raise cbex.ExchangeError((coinbase_time.json()['message']))
+
+        raise cbex.ExchangeError((coinbase_time.json()['message']))
 
     def sell(self, size, product_id, price):
         """Places an order on the 'sell' side.
@@ -807,10 +806,8 @@ class Coinbase(Exchange):
         msg = trades.json()['message']
         raise cbex.ExchangeError(msg)
 
-
     def withdraw(self, amount, currency, payment_method_id):
-        """Withdraw funds to a payment method.
-        """
+        """Withdraw funds to a payment method."""
         url = self.__api_url + '/{}/{}'.format(
             CBConst.withdrawals,
             CBConst.payment_method
