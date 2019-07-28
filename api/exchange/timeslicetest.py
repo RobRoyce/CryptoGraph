@@ -2,11 +2,12 @@ import unittest
 from datetime import datetime
 from timeslice import TimeSlice
 
+
 class TestTimeSlice(unittest.TestCase):
 
     def test_convert_datetime(self):
         ts = TimeSlice()
-        start = datetime(2020, 1,1)
+        start = datetime(2020, 1, 1)
         end = datetime(2030, 1, 1)
 
         # Start-only, seconds
@@ -38,7 +39,7 @@ class TestTimeSlice(unittest.TestCase):
 
         # Start-only, datetime
         start_in_datetime = ts.convert_iso_str(start)
-        self.assertEqual(start_in_datetime, datetime(2020, 1,1))
+        self.assertEqual(start_in_datetime, datetime(2020, 1, 1))
 
         # Start-only, seconds
         start_in_seconds = ts.convert_iso_str(start, seconds=True)
@@ -58,7 +59,7 @@ class TestTimeSlice(unittest.TestCase):
             ts.convert_iso_str('random string')
 
         with self.assertRaises(TypeError):
-            ts.convert_iso_str(datetime(2020,1,1))
+            ts.convert_iso_str(datetime(2020, 1, 1))
 
     def test_convert_seconds(self):
         ts = TimeSlice()
@@ -108,7 +109,7 @@ class TestTimeSlice(unittest.TestCase):
             ts.convert_seconds('random string')
 
         with self.assertRaises(TypeError):
-            ts.convert_seconds(datetime(2020,1,1))
+            ts.convert_seconds(datetime(2020, 1, 1))
 
     def test_time_slice(self):
         ts = TimeSlice()
