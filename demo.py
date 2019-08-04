@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 '''Example usage of CryptoGraph with ElasticSearch.
 
 Note: ElasticSearch must be running on your computer.
@@ -19,13 +21,11 @@ from api.logs.setuplogger import logger
 from marketdata import MarketData
 
 
-
 if __name__ == '__main__':
 
     event_log = logging.getLogger('root.demo')
     event_log.debug('{} started...'.format(__name__))
     exchange = Coinbase()
-
 
     es = Elasticsearch()
     index = 'test-{}'.format(str(int(time.time()))[-4:])

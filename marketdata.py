@@ -70,7 +70,7 @@ class MarketData():
                     'open': _candle['open'],
                     'close': _candle['close'],
                     'volume': _candle['volume']
-                    }
+                }
         else:
             if failed_attempts >= 10:
                 msg = 'Too many failed attempts. Invalid range or granularity'
@@ -88,7 +88,8 @@ class MarketData():
 
     def slices(self, product_id: str, start: datetime, end: datetime, granularity: int) -> list:
         """Returns a list of time sliced candle data based on time range and granularity"""
-        time_slice = TimeSlice.time_slice(start, end, granularity, iso8601=True)
+        time_slice = TimeSlice.time_slice(
+            start, end, granularity, iso8601=True)
         slices = []
         slice_count = 0
         failed_attempts = 0
@@ -102,7 +103,8 @@ class MarketData():
                 raise err
 
             success = len(_candles) > 0
-            self._event_log.debug('Candles pulled successfully: {}'.format(success))
+            self._event_log.debug(
+                'Candles pulled successfully: {}'.format(success))
 
             if success:
                 slices.append(_candles)
@@ -129,6 +131,7 @@ class MarketData():
 
     def __exit__(self, exception_type, exception_value, traceback):
         pass
+
 
 if __name__ == '__main__':
     exchange = Coinbase()

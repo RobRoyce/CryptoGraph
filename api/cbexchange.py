@@ -442,7 +442,7 @@ class Coinbase(Exchange):
             (end and not start),
             (product_id not in self.__valid_product_ids),
             (granularity not in self.__available_granularity)
-            ]
+        ]
         if any(errors):
             msg = '{}'.format((product_id, start, end, granularity))
             self._event_log.error(msg)

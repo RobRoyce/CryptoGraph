@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """Note that you have to change the relative import method in cbexchange.py
 i.e.        `from .coinbase.auth import CoinbaseAuth`
 should be   `from coinbase.auth import CoinbaseAuth`
