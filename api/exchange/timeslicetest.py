@@ -4,7 +4,6 @@ from timeslice import TimeSlice
 
 
 class TestTimeSlice(unittest.TestCase):
-
     def test_convert_datetime(self):
         ts = TimeSlice()
         start = datetime(2020, 1, 1)
@@ -88,20 +87,24 @@ class TestTimeSlice(unittest.TestCase):
         self.assertEqual(end_in_datetime, datetime(2030, 1, 1))
 
         # Start-End, datetime, utc
-        start_in_datetime, end_in_datetime = ts.convert_seconds(
-            start, end, utc=True)
+        start_in_datetime, end_in_datetime = ts.convert_seconds(start,
+                                                                end,
+                                                                utc=True)
         self.assertEqual(start_in_datetime, datetime(2020, 1, 1, 8))
         self.assertEqual(end_in_datetime, datetime(2030, 1, 1, 8))
 
         # Start-only, iso8601
-        start_in_iso8601, end_in_iso8601 = ts.convert_seconds(
-            start, end, iso8601=True)
+        start_in_iso8601, end_in_iso8601 = ts.convert_seconds(start,
+                                                              end,
+                                                              iso8601=True)
         self.assertEqual(start_in_iso8601, '2020-01-01T00:00:00')
         self.assertEqual(end_in_iso8601, '2030-01-01T00:00:00')
 
         # Start-only, iso8601, utc
-        start_in_iso8601, end_in_iso8601 = ts.convert_seconds(
-            start, end, iso8601=True, utc=True)
+        start_in_iso8601, end_in_iso8601 = ts.convert_seconds(start,
+                                                              end,
+                                                              iso8601=True,
+                                                              utc=True)
         self.assertEqual(start_in_iso8601, '2020-01-01T08:00:00')
         self.assertEqual(end_in_iso8601, '2030-01-01T08:00:00')
 
@@ -120,21 +123,21 @@ class TestTimeSlice(unittest.TestCase):
         # datetime
         ts_list = ts.time_slice(start, end, granularity)
         self.assertEqual(len(ts_list), 211)
-        self.assertEqual(ts_list[0], [
-            datetime(2020, 1, 1, 0, 0),
-            datetime(2020, 1, 18, 8, 40)])
-        self.assertEqual(ts_list[210], [
-            datetime(2029, 12, 24, 20, 0),
-            datetime(2030, 1, 1, 0, 0)])
+        self.assertEqual(
+            ts_list[0],
+            [datetime(2020, 1, 1, 0, 0),
+             datetime(2020, 1, 18, 8, 40)])
+        self.assertEqual(
+            ts_list[210],
+            [datetime(2029, 12, 24, 20, 0),
+             datetime(2030, 1, 1, 0, 0)])
 
         ts_list = ts.time_slice(start, end, granularity, True)
         self.assertEqual(len(ts_list), 211)
-        self.assertEqual(ts_list[0], [
-            '2020-01-01T00:00:00',
-            '2020-01-18T08:40:00'])
-        self.assertEqual(ts_list[210], [
-            '2029-12-24T20:00:00',
-            '2030-01-01T00:00:00'])
+        self.assertEqual(ts_list[0],
+                         ['2020-01-01T00:00:00', '2020-01-18T08:40:00'])
+        self.assertEqual(ts_list[210],
+                         ['2029-12-24T20:00:00', '2030-01-01T00:00:00'])
 
 
 if __name__ == '__main__':

@@ -12,12 +12,12 @@ class TimeSlice:
     The end goal is to work exclusively with datetime objects, but to be
     able to convert back and forth with ISO 8601 and seconds seamlessly.
     """
-
     def __init__(self):
         pass
 
     @staticmethod
-    def convert_datetime(start: datetime, end: datetime = None,
+    def convert_datetime(start: datetime,
+                         end: datetime = None,
                          iso8601: bool = False):
         """Converts a datetime object into its epoch time (in seconds) or
         an iso8601 string
@@ -31,7 +31,8 @@ class TimeSlice:
         float or float, float    or...
         str or str, str
         """
-        _start = start.isoformat() if iso8601 else time.mktime(start.timetuple())
+        _start = start.isoformat() if iso8601 else time.mktime(
+            start.timetuple())
         if end:
             _end = end.isoformat() if iso8601 else time.mktime(end.timetuple())
             return _start, _end
@@ -69,8 +70,10 @@ class TimeSlice:
         return parser.parse(start)
 
     @staticmethod
-    def convert_seconds(start: float, end: float = None,
-                        iso8601: bool = False, utc: bool = False):
+    def convert_seconds(start: float,
+                        end: float = None,
+                        iso8601: bool = False,
+                        utc: bool = False):
         """Converts seconds since epoch into datetime or iso8601 string
 
         Keyword arguments:
@@ -95,8 +98,10 @@ class TimeSlice:
         return _start
 
     @staticmethod
-    def time_slice(start: datetime, end: datetime,
-                   granularity: int, iso8601: bool = False) -> list:
+    def time_slice(start: datetime,
+                   end: datetime,
+                   granularity: int,
+                   iso8601: bool = False) -> list:
         """Returns a list whose elements are pairs (slices) of datetime deltas.
         Ex: `[[datetime1, datetime2], [datetime3, datetime4], ...]`
 
@@ -119,11 +124,8 @@ class TimeSlice:
         [[datetime,datetime], ...]  or...
         [[str,str], ...]
         """
-        errors = [
-            (start > end),
-            (not isinstance(start, datetime)),
-            (not isinstance(end, datetime))
-        ]
+        errors = [(start > end), (not isinstance(start, datetime)),
+                  (not isinstance(end, datetime))]
         if any(errors):
             raise Exception('start: {}, end: {}, granularity: {}'.format(
                 start, end, granularity))

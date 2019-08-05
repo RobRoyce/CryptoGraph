@@ -36,15 +36,13 @@ class CoinbaseAuth(AuthBase):
         These headers are then used as arguments in
         the various REST methods.
     """
-
     def __init__(self, api_key: str, secret_key: str, passphrase: str):
         self.__log = logging.getLogger('root.{}'.format(__name__))
         self.__log.debug('encrypting message...')
 
-        errors = [
-            (not isinstance(api_key, str)),
-            (not isinstance(secret_key, str)),
-            (not isinstance(passphrase, str))]
+        errors = [(not isinstance(api_key, str)),
+                  (not isinstance(secret_key, str)),
+                  (not isinstance(passphrase, str))]
 
         if any(errors):
             msg = 'arguments must be str type'
@@ -66,12 +64,7 @@ class CoinbaseAuth(AuthBase):
         path_url = request.path_url
         body = '' if request.body is None else request.body.decode('utf-8')
 
-        message = '{}{}{}{}'.format(
-            timestamp,
-            method,
-            path_url,
-            body
-        ).encode()
+        message = '{}{}{}{}'.format(timestamp, method, path_url, body).encode()
 
         hmac_key = base64.b64decode(self.__secret_key)
         signature = hmac.new(hmac_key, message, hashlib.sha256)

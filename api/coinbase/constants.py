@@ -1,5 +1,4 @@
 class CBConst():
-
     """
         Constants used for communication with the coinbase API.
 
@@ -8,7 +7,6 @@ class CBConst():
         URL's for the Sandbox exchange can be found in CBConst.Sandbox
         Status codes can be found in CBConst.Status
     """
-
     def __init__(self):
         pass
 
