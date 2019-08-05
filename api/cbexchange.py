@@ -433,9 +433,11 @@ class Coinbase(Exchange):
         close: closing price (last trade) in the bucket interval
         volume: volume of trading activity during the bucket interval
         """
+        
         errors = [(start and not end), (end and not start),
                   (product_id not in self.__valid_product_ids),
                   (granularity not in self.__available_granularity)]
+
         if any(errors):
             msg = '{}'.format((product_id, start, end, granularity))
             self._event_log.error(msg)

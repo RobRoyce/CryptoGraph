@@ -11,9 +11,11 @@ class Candle(Iterable):
         self.close = args[4]
         self.volume = args[5]
         self.labels = ['time', 'low', 'high', 'open', 'close', 'volume']
+
         self.values = [
             self.time, self.low, self.high, self.open, self.close, self.volume
         ]
+
         self.__index = 0
 
     def key_value_pair(self):

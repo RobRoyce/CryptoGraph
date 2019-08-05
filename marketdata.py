@@ -13,6 +13,13 @@ from api.logs.setuplogger import logger
 
 
 class MarketData():
+    """A wrapper around compatible Exchange modules.
+
+    Parameters
+    ----------
+    ex : Exchange
+        An Exchange object that conforms to the Exchange base type.
+    """
     def __init__(self, ex: Exchange) -> None:
         self.__validate(ex, Exchange)
         self._exchange = ex
