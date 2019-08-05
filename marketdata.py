@@ -13,6 +13,13 @@ from api.logs.setuplogger import logger
 
 
 class MarketData():
+    """A wrapper around compatible Exchange modules.
+
+    Parameters
+    ----------
+    ex : Exchange
+        An Exchange object that conforms to the Exchange base type.
+    """
     def __init__(self, ex: Exchange) -> None:
         self.__validate(ex, Exchange)
         self._exchange = ex
@@ -62,7 +69,9 @@ class MarketData():
         if _candles:
             for _candle in _candles:
                 yield {
-                    'index': {'_index': index},
+                    'index': {
+                        '_index': index
+                    },
                     'time': _candle['time'],
                     'product_id': product_id,
                     'high': _candle['high'],
@@ -70,7 +79,7 @@ class MarketData():
                     'open': _candle['open'],
                     'close': _candle['close'],
                     'volume': _candle['volume']
-                    }
+                }
         else:
             if failed_attempts >= 10:
                 msg = 'Too many failed attempts. Invalid range or granularity'
@@ -86,9 +95,13 @@ class MarketData():
             box.append(_candle)
         return box
 
-    def slices(self, product_id: str, start: datetime, end: datetime, granularity: int) -> list:
+    def slices(self, product_id: str, start: datetime, end: datetime,
+               granularity: int) -> list:
         """Returns a list of time sliced candle data based on time range and granularity"""
-        time_slice = TimeSlice.time_slice(start, end, granularity, iso8601=True)
+        time_slice = TimeSlice.time_slice(start,
+                                          end,
+                                          granularity,
+                                          iso8601=True)
         slices = []
         slice_count = 0
         failed_attempts = 0
@@ -102,7 +115,8 @@ class MarketData():
                 raise err
 
             success = len(_candles) > 0
-            self._event_log.debug('Candles pulled successfully: {}'.format(success))
+            self._event_log.debug(
+                'Candles pulled successfully: {}'.format(success))
 
             if success:
                 slices.append(_candles)
@@ -129,6 +143,7 @@ class MarketData():
 
     def __exit__(self, exception_type, exception_value, traceback):
         pass
+
 
 if __name__ == '__main__':
     exchange = Coinbase()

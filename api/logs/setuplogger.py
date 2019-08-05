@@ -10,6 +10,7 @@ if not os.path.exists('logs/archive'):
     except OSError as err:
         raise err
 
+
 class Logger:
     def __init__(self):
         fmt = '%(levelname)s %(asctime)s ~ %(name)s.%(funcName)s(): %(message)s'
@@ -24,7 +25,7 @@ class Logger:
 
     def __datestamp(self):
         TZ = pytz.timezone('US/Pacific')
-        return datetime(2020, 1,1).now(tz=TZ).date()
+        return datetime(2020, 1, 1).now(tz=TZ).date()
 
     def critical(self, msg):
         self._log.critical(msg)
