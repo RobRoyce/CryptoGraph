@@ -8,7 +8,6 @@ class Granularity:
     next(my_granularity)
     str(my_granularity)
     """
-
     def __init__(self, *granularities):
         """A class for storing valid time intervals within an Exchange
 
