@@ -21,7 +21,6 @@ event_log = logging.getLogger('root.{}'.format(__name__))
 
 class Coinbase(Exchange):
     """An Exchange subclass used for IO ops with Coinbase"""
-
     def __init__(self, auth: CoinbaseAuth = None, sandbox: bool = False):
         """An Exchange subclass used for IO ops with Coinbase
 
@@ -48,7 +47,11 @@ class Coinbase(Exchange):
         self.__available_granularity = Granularity(
             (60, 300, 900, 3600, 21600, 86400))
         self._rate_limits = {
-            'public': 3, 'public_burst': 6, 'private': 5, 'private_burst': 10}
+            'public': 3,
+            'public_burst': 6,
+            'private': 5,
+            'private_burst': 10
+        }
         self.__last_call = time.time()
         self.__call_count = 0
         self.__timeout = 0.5
@@ -120,10 +123,7 @@ class Coinbase(Exchange):
         """
         if account_id:
             url = self.__api_url + '/{}/{}/{}'.format(
-                CBConst.accounts,
-                account_id,
-                CBConst.ledger
-            )
+                CBConst.accounts, account_id, CBConst.ledger)
 
             try:
                 history = requests.get(url, auth=self.__auth)
@@ -146,10 +146,7 @@ class Coinbase(Exchange):
         for account in accounts:
             account_id = account['id']
             url = self.__api_url + '/{}/{}/{}'.format(
-                CBConst.accounts,
-                account_id,
-                CBConst.ledger
-            )
+                CBConst.accounts, account_id, CBConst.ledger)
 
             try:
                 history = requests.get(url, auth=self.__auth)
@@ -259,14 +256,12 @@ class Coinbase(Exchange):
             return receipt.json()
 
         message = receipt.json()['message']
-        price_errors = [
-            (CBConst.Errors.invalid_price in message),
-            (CBConst.Errors.price_required in message),
-            (CBConst.Errors.price_too_large in message)]
-        size_errors = [
-            (CBConst.Errors.size_required in message),
-            (CBConst.Errors.size_too_large in message),
-            (CBConst.Errors.size_too_small in message)]
+        price_errors = [(CBConst.Errors.invalid_price in message),
+                        (CBConst.Errors.price_required in message),
+                        (CBConst.Errors.price_too_large in message)]
+        size_errors = [(CBConst.Errors.size_required in message),
+                       (CBConst.Errors.size_too_large in message),
+                       (CBConst.Errors.size_too_small in message)]
 
         if any(price_errors):
             raise cbex.InvalidPrice(price)
@@ -350,10 +345,8 @@ class Coinbase(Exchange):
             raise err
 
     def deposit(self, amount, currency, payment_method_id):
-        url = self.__api_url + '/{}/{}'.format(
-            CBConst.deposits,
-            CBConst.payment_method
-        )
+        url = self.__api_url + '/{}/{}'.format(CBConst.deposits,
+                                               CBConst.payment_method)
         data = {
             CBConst.amount: amount,
             CBConst.currency: currency,
@@ -388,8 +381,11 @@ class Coinbase(Exchange):
                 valid_product_ids.append(product['id'])
         return tuple(valid_product_ids)
 
-    def historic_rates(
-            self, product_id, start=False, end=False, granularity=3600):
+    def historic_rates(self,
+                       product_id,
+                       start=False,
+                       end=False,
+                       granularity=3600):
         """Historic rates for a product.
         Rates are returned in grouped buckets based on requested granularity.
         Historic rates DO NOT exist for `Sandbox` mode.
@@ -437,12 +433,11 @@ class Coinbase(Exchange):
         close: closing price (last trade) in the bucket interval
         volume: volume of trading activity during the bucket interval
         """
-        errors = [
-            (start and not end),
-            (end and not start),
-            (product_id not in self.__valid_product_ids),
-            (granularity not in self.__available_granularity)
-        ]
+        
+        errors = [(start and not end), (end and not start),
+                  (product_id not in self.__valid_product_ids),
+                  (granularity not in self.__available_granularity)]
+
         if any(errors):
             msg = '{}'.format((product_id, start, end, granularity))
             self._event_log.error(msg)
@@ -456,8 +451,8 @@ class Coinbase(Exchange):
             start = start.isoformat()
             end = end.isoformat()
 
-        url = self.__api_url + '/{}/{}/{}'.format(
-            CBConst.products, product_id, CBConst.candles)
+        url = self.__api_url + '/{}/{}/{}'.format(CBConst.products, product_id,
+                                                  CBConst.candles)
 
         params = {'granularity': granularity}
         if start and end:
@@ -507,10 +502,7 @@ class Coinbase(Exchange):
         """
         if account_id:
             url = self.__api_url + '/{}/{}/{}'.format(
-                CBConst.accounts,
-                account_id,
-                CBConst.holds
-            )
+                CBConst.accounts, account_id, CBConst.holds)
 
             try:
                 holds = requests.get(url, auth=self.__auth)
@@ -536,10 +528,7 @@ class Coinbase(Exchange):
         for account in accounts:
             account_id = account['id']
             url = self.__api_url + '/{}/{}/{}'.format(
-                CBConst.accounts,
-                account_id,
-                CBConst.holds
-            )
+                CBConst.accounts, account_id, CBConst.holds)
 
             try:
                 holds = requests.get(url, auth=self.__auth)
@@ -563,11 +552,8 @@ class Coinbase(Exchange):
             2 - Top 50 bids and asks (aggregated)
             3 - Full order book (non aggregated)
         """
-        url = self.__api_url + '/{}/{}/{}'.format(
-            CBConst.products,
-            product_id,
-            CBConst.book
-        )
+        url = self.__api_url + '/{}/{}/{}'.format(CBConst.products, product_id,
+                                                  CBConst.book)
 
         if level:
             url += '?level={}'.format(level)
@@ -771,10 +757,8 @@ class Coinbase(Exchange):
         return _active
 
     def ticker(self, symbol):
-        url = self.__api_url + '/{}/{}/{}'.format(
-            CBConst.products,
-            symbol,
-            CBConst.ticker)
+        url = self.__api_url + '/{}/{}/{}'.format(CBConst.products, symbol,
+                                                  CBConst.ticker)
 
         try:
             ticker = requests.get(url)
@@ -789,10 +773,8 @@ class Coinbase(Exchange):
 
     def trades(self, product_id):
         """List the latest trades for a specific product_id."""
-        url = self.__api_url + '/{}/{}/{}'.format(
-            CBConst.products,
-            product_id,
-            CBConst.trades)
+        url = self.__api_url + '/{}/{}/{}'.format(CBConst.products, product_id,
+                                                  CBConst.trades)
 
         try:
             trades = requests.get(url)
@@ -808,10 +790,8 @@ class Coinbase(Exchange):
 
     def withdraw(self, amount, currency, payment_method_id):
         """Withdraw funds to a payment method."""
-        url = self.__api_url + '/{}/{}'.format(
-            CBConst.withdrawals,
-            CBConst.payment_method
-        )
+        url = self.__api_url + '/{}/{}'.format(CBConst.withdrawals,
+                                               CBConst.payment_method)
         data = {
             CBConst.amount: amount,
             CBConst.currency: currency,
@@ -856,11 +836,9 @@ class Coinbase(Exchange):
 
 if __name__ == '__main__':
     KEYS = Keys('COINBASE_SANDBOX')
-    AUTH = CoinbaseAuth(
-        api_key=KEYS.api_key,
-        secret_key=KEYS.secret_key,
-        passphrase=KEYS.passphrase
-    )
+    AUTH = CoinbaseAuth(api_key=KEYS.api_key,
+                        secret_key=KEYS.secret_key,
+                        passphrase=KEYS.passphrase)
 
     CB = Coinbase()
     print(CB.valid_product_ids())

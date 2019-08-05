@@ -19,8 +19,8 @@ class CoinbaseTestCase(unittest.TestCase):
     def setUp(self):
         keys = Keys('COINBASE_SANDBOX')
         self.symbol = 'BTC-USD'
-        self.auth = CoinbaseAuth(
-            keys.api_key, keys.secret_key, keys.passphrase)
+        self.auth = CoinbaseAuth(keys.api_key, keys.secret_key,
+                                 keys.passphrase)
 
     def tearDown(self):
         exchange = Coinbase(auth=self.auth, sandbox=True)
@@ -188,8 +188,9 @@ class CoinbaseTestCase(unittest.TestCase):
         error = False
 
         try:  # granularity too small
-            rates = exchange.historic_rates(
-                'ETH-USD', start='2019-01-01', end='2019-06-01')
+            rates = exchange.historic_rates('ETH-USD',
+                                            start='2019-01-01',
+                                            end='2019-06-01')
         except cbex.InvalidArgument:
             error = True
         self.assertTrue(error)
